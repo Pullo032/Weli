@@ -1,11 +1,14 @@
 """
 Optimiseurs pour Weli.
+
+Ce module contient toutes les implémentations d'optimiseurs pour l'entraînement
+des modèles de deep learning.
 """
 
-# Import de base (à compléter quand SGD sera implémenté)
-# from .sgd import SGD
+# Import de la classe de base
+from .base import Optimizer
 
-# Pour l'instant, exporter une classe vide pour éviter les erreurs d'import
+# Import de SGD
 try:
     from .sgd import SGD
 except ImportError:
@@ -15,6 +18,8 @@ except ImportError:
         def __init__(self, lr=0.01):
             self.lr = lr
 
-__all__ = ['SGD']
-
-__all__ = ['Optimizer', 'SGD']
+# Liste des exports
+__all__ = [
+    'Optimizer',  # Classe de base pour tous les optimiseurs
+    'SGD',        # Stochastic Gradient Descent
+]
