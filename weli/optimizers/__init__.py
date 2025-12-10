@@ -18,8 +18,19 @@ except ImportError:
         def __init__(self, lr=0.01):
             self.lr = lr
 
+# Import de RMSprop
+try:
+    from .rmsprop import RMSprop
+except ImportError:
+    # Si RMSprop n'est pas encore implémenté, créer une classe placeholder
+    class RMSprop:
+        """Placeholder pour RMSprop optimizer"""
+        def __init__(self, lr=0.001):
+            self.lr = lr
+
 # Liste des exports
 __all__ = [
     'Optimizer',  # Classe de base pour tous les optimiseurs
     'SGD',        # Stochastic Gradient Descent
+    'RMSprop',    # Root Mean Square Propagation
 ]
