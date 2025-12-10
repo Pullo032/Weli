@@ -28,9 +28,20 @@ except ImportError:
         def __init__(self, lr=0.001):
             self.lr = lr
 
+# Import de Adam
+try:
+    from .adam import Adam
+except ImportError:
+    # Si Adam n'est pas encore implémenté, créer une classe placeholder
+    class Adam:
+        """Placeholder pour Adam optimizer"""
+        def __init__(self, lr=0.001):
+            self.lr = lr
+
 # Liste des exports
 __all__ = [
     'Optimizer',  # Classe de base pour tous les optimiseurs
     'SGD',        # Stochastic Gradient Descent
     'RMSprop',    # Root Mean Square Propagation
+    'Adam',       # Adaptive Moment Estimation
 ]
