@@ -17,3 +17,4 @@ except ImportError:
 
 __all__ = ['SGD']
 
+__all__ = ['Optimizer', 'SGD']
