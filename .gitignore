@@ -1,1 +1,70 @@
+# Environnements virtuels
 envweli/
+venv/
+ENV/
+env/
+.venv/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyCharm
+.idea/
+
+# VS Code
+.vscode/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Fichiers de sauvegarde
+*.weli
+*.pkl
+*.h5
+*.hdf5
+*.npz
+
+# Fichiers temporaires
+*.log
+*.tmp
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Tests
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Documentation
+docs/_build/
+
+# Modèles sauvegardés (optionnel - décommenter si vous ne voulez pas versionner les modèles)
+# models/
+# saved_models/
+
