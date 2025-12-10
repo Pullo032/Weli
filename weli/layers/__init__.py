@@ -19,6 +19,7 @@ from .dropout import Dropout
 from .convolutional import Conv2D, MaxPool2D, Flatten
 from .batchnorm import BatchNorm1D, BatchNorm2D
 from .rnn import SimpleRNN, LSTM, GRU
+from .attention import MultiHeadAttention, SelfAttention
 
 __all__ = [
     'Layer',
@@ -28,5 +29,6 @@ __all__ = [
     'Dropout',
     'Conv2D', 'MaxPool2D', 'Flatten',
     'BatchNorm1D', 'BatchNorm2D',
-    'SimpleRNN', 'LSTM', 'GRU'
+    'SimpleRNN', 'LSTM', 'GRU',
+    'MultiHeadAttention', 'SelfAttention'
 ]
