@@ -9,7 +9,7 @@ Couches du réseau neuronal Weli
 
 
 from .base import Layer
-from .dense import Dense
+from .danse import Dense
 from .activation import (
     ReLU, Sigmoid, Tanh, 
     Softmax, LeakyReLU, ELU,
@@ -20,6 +20,7 @@ from .convolutional import Conv2D, MaxPool2D, Flatten
 from .batchnorm import BatchNorm1D, BatchNorm2D
 from .rnn import SimpleRNN, LSTM, GRU
 from .attention import MultiHeadAttention, SelfAttention
+from .merge import Add, Multiply, Average, Maximum, Concatenate, Dot, Subtract
 
 __all__ = [
     'Layer',
@@ -30,5 +31,6 @@ __all__ = [
     'Conv2D', 'MaxPool2D', 'Flatten',
     'BatchNorm1D', 'BatchNorm2D',
     'SimpleRNN', 'LSTM', 'GRU',
-    'MultiHeadAttention', 'SelfAttention'
+    'MultiHeadAttention', 'SelfAttention',
+    'Add', 'Multiply', 'Average', 'Maximum', 'Concatenate', 'Dot', 'Subtract'
 ]
