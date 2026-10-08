@@ -107,7 +107,11 @@ restored_model = load_model("regression.weli", compile=False)
 restored_predictions = restored_model.predict(x_val[:5])
 ```
 
-`history` est un dictionnaire contenant les métriques d'entraînement, notamment `train_loss`, `train_acc`, `val_loss` et `val_acc`. Pour une tâche de régression, la métrique d'accuracy n'est pas significative.
+`history` est un dictionnaire contenant `train_loss` et `train_acc`, ainsi que
+`val_loss` et `val_acc` lorsque des données de validation sont fournies.
+L'accuracy calculée par Weli est une mesure simplifiée de classification ;
+elle n'est pas significative pour une tâche de régression. `evaluate()` renvoie
+un tuple `(loss, accuracy)` avec la même réserve.
 
 ## Principales API
 
@@ -192,10 +196,13 @@ La méthode `model.save(path)` est également disponible. La sauvegarde complèt
 
 ## Exemples et documentation
 
-- [Documentation détaillée](README/README.md) : guides d'installation, modèles, couches, pertes, optimiseurs, entraînement, exemples et dépannage.
-- [Référence complète de l'API](README/api.md) : symboles exportés, conventions des données et outils disponibles.
+- [Documentation détaillée](README/README.md) : index des guides et des références.
+- [Guide d'entraînement](README/entrainement.md) : préparer les tableaux NumPy, lancer l'entraînement et interpréter les métriques.
+- [Référence de l'API](README/api.md) : méthodes des modèles, couches, pertes,
+  optimiseurs et formats.
 - [Guide des modèles](weli/models/README.md) : API séquentielle et fonctionnelle, sérialisation et exports.
-- [Exemple de régression](examples/regression.py) et [guide des exemples](examples/README.md).
+- [Guide des exemples](README/exemples.md), [exemple de régression](examples/regression.py)
+  et [instructions d'exécution](examples/README.md).
 - [Application de documentation](Frontend/weli-frontend/) : site de documentation Weli.
 
 Les guides Markdown sont également inclus dans l'archive source. La
