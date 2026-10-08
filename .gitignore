@@ -5,6 +5,12 @@ ENV/
 env/
 .venv/
 
+# Variables d'environnement locales
+.env
+.env.*
+!.env.example
+!.env.*.example
+
 # Python
 __pycache__/
 *.py[cod]
@@ -51,6 +57,23 @@ MANIFEST
 *.swo
 *~
 
+# Frontend et dépendances JavaScript
+node_modules/
+dist/
+dist-ssr/
+.vite/
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# Secrets et clés privées
+*.pem
+*.key
+*.p12
+*.pfx
+secrets.json
+credentials.json
+
 # OS
 .DS_Store
 Thumbs.db
@@ -67,4 +90,16 @@ docs/_build/
 # Modèles sauvegardés (optionnel - décommenter si vous ne voulez pas versionner les modèles)
 # models/
 # saved_models/
+setup.py
+.env.example
+Data/
+Frontend/
+MANIFEST.in
+Nettoyages/
+README/
+examples/regression.py
+pyproject.toml
+testes/test_model_modules.py
+testes/test_models.py
+training/
 

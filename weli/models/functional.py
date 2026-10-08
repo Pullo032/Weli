@@ -139,6 +139,7 @@ MaxPool2D = layer_wrapper(lambda *args, **kwargs: __import__('weli.layers', from
 Flatten = layer_wrapper(lambda *args, **kwargs: __import__('weli.layers', fromlist=['']).Flatten(*args, **kwargs))
 Dropout = layer_wrapper(lambda *args, **kwargs: __import__('weli.layers', fromlist=['']).Dropout(*args, **kwargs))
 BatchNorm2D = layer_wrapper(lambda *args, **kwargs: __import__('weli.layers', fromlist=['']).BatchNorm2D(*args, **kwargs))
+ReLU = layer_wrapper(lambda *args, **kwargs: __import__('weli.layers', fromlist=['']).ReLU(*args, **kwargs))
 
 # Opérations fonctionnelles
 def add(inputs: List[LayerNode], name: Optional[str] = None) -> LayerNode:
@@ -158,17 +159,19 @@ def add(inputs: List[LayerNode], name: Optional[str] = None) -> LayerNode:
         def __init__(self, name):
             super().__init__(name)
             self.trainable = False
+            self.functional_operation = "add"
+            self.input_count = 0
         
         def forward(self, inputs):
             # inputs est une liste de tenseurs
-            result = inputs[0]
+            result = inputs[0].copy()
             for i in range(1, len(inputs)):
                 result += inputs[i]
             return result
         
         def backward(self, dout):
             # Gradient est distribué à tous les inputs
-            return [dout for _ in range(len(self.inputs))]
+            return [dout for _ in range(self.input_count)]
         
         def initialize(self, input_shapes):
             # Tous les inputs doivent avoir la même shape
@@ -178,6 +181,7 @@ def add(inputs: List[LayerNode], name: Optional[str] = None) -> LayerNode:
             return input_shapes[0]
     
     layer = AddLayer(name or "add")
+    layer.input_count = len(inputs)
     node = LayerNode(layer)
     
     # Connecter les inputs
@@ -206,13 +210,15 @@ def concatenate(inputs: List[LayerNode], axis: int = -1, name: Optional[str] = N
             super().__init__(name)
             self.axis = axis
             self.trainable = False
+            self.functional_operation = "concatenate"
+            self.input_shapes = []
         
         def forward(self, inputs):
             return np.concatenate(inputs, axis=self.axis)
         
         def backward(self, dout):
             # Split le gradient selon l'axe
-            sizes = [inp.shape[self.axis] for inp in self.inputs]
+            sizes = [shape[self.axis] for shape in self.input_shapes]
             splits = np.split(dout, np.cumsum(sizes)[:-1], axis=self.axis)
             return splits
         
@@ -234,6 +240,11 @@ def concatenate(inputs: List[LayerNode], axis: int = -1, name: Optional[str] = N
             output_shape = base_shape.copy()
             output_shape[axis] = sum(shape[axis] for shape in input_shapes)
             return tuple(output_shape)
+
+        def get_config(self):
+            config = super().get_config()
+            config["axis"] = self.axis
+            return config
     
     layer = ConcatenateLayer(axis, name or "concatenate")
     node = LayerNode(layer)
@@ -261,19 +272,22 @@ def multiply(inputs: List[LayerNode], name: Optional[str] = None) -> LayerNode:
         def __init__(self, name):
             super().__init__(name)
             self.trainable = False
+            self.functional_operation = "multiply"
+            self.input_count = 0
+            self.cached_inputs = []
         
         def forward(self, inputs):
-            result = inputs[0]
+            result = inputs[0].copy()
             for i in range(1, len(inputs)):
                 result *= inputs[i]
             return result
         
         def backward(self, dout):
             gradients = []
-            for i, inp in enumerate(self.inputs):
+            for i in range(self.input_count):
                 # Gradient pour l'input i: dout * produit des autres inputs
                 grad = dout.copy()
-                for j, other_inp in enumerate(self.inputs):
+                for j, other_inp in enumerate(self.cached_inputs):
                     if j != i:
                         grad *= other_inp
                 gradients.append(grad)
@@ -287,6 +301,7 @@ def multiply(inputs: List[LayerNode], name: Optional[str] = None) -> LayerNode:
             return input_shapes[0]
     
     layer = MultiplyLayer(name or "multiply")
+    layer.input_count = len(inputs)
     node = LayerNode(layer)
     
     for inp in inputs:
@@ -365,7 +380,27 @@ class Functional(Model):
                     in_degree[out_node] += 1
         
         # File des nœuds sans dépendances
-        queue = [node for node in self._all_nodes if in_degree[node] == 0]
+        node_order = []
+        seen = set()
+
+        def visit(node):
+            if node in seen:
+                return
+            seen.add(node)
+            node_order.append(node)
+            for out_node in node.outputs:
+                if out_node in self._all_nodes:
+                    visit(out_node)
+
+        for input_node in self.input_nodes:
+            visit(input_node)
+        for node in self._all_nodes:
+            visit(node)
+        order_index = {node: index for index, node in enumerate(node_order)}
+        queue = sorted(
+            (node for node in self._all_nodes if in_degree[node] == 0),
+            key=order_index.get
+        )
         self._forward_order = []
         
         while queue:
@@ -378,6 +413,7 @@ class Functional(Model):
                     in_degree[out_node] -= 1
                     if in_degree[out_node] == 0:
                         queue.append(out_node)
+                        queue.sort(key=order_index.get)
         
         # Vérifier s'il y a un cycle
         if len(self._forward_order) != len(self._all_nodes):
@@ -405,8 +441,8 @@ class Functional(Model):
         
         # Assigner les shapes aux inputs
         for inp_node, shape in zip(self.input_nodes, input_shapes):
-            inp_node.layer.shape = shape
-            inp_node.layer.output_shape = shape
+            inp_node.layer.shape = tuple(shape)
+            inp_node.layer.output_shape = (None,) + tuple(shape)
         
         # Tri topologique
         self._topological_sort()
@@ -416,7 +452,7 @@ class Functional(Model):
         
         for node in self._forward_order:
             if node in self.input_nodes:
-                # Déjà initialisé
+                node_shapes[node] = (None,) + tuple(node.layer.shape)
                 continue
             
             # Récupérer les shapes des inputs
@@ -433,13 +469,15 @@ class Functional(Model):
                 output_shape = node.layer.initialize(input_shapes_for_node[0])
             else:
                 output_shape = node.layer.initialize(input_shapes_for_node)
+                if getattr(node.layer, "functional_operation", None) == "concatenate":
+                    node.layer.input_shapes = input_shapes_for_node
             
             node_shapes[node] = output_shape
         
         # Stocker les shapes d'input et output
         self._input_shape = input_shapes[0] if len(input_shapes) == 1 else input_shapes
-        self._output_shape = node_shapes[self.output_nodes[0]] if len(self.output_nodes) == 1 else \
-                            [node_shapes[out] for out in self.output_nodes]
+        output_shapes = [node_shapes[out][1:] for out in self.output_nodes]
+        self._output_shape = output_shapes[0] if len(output_shapes) == 1 else output_shapes
         
         # Collecter toutes les couches trainables
         self.layers = [node.layer for node in self._forward_order if node.layer.trainable]
@@ -497,6 +535,8 @@ class Functional(Model):
                     input_tensors.append(inp)
             
             # Forward pass
+            if getattr(node.layer, "functional_operation", None) == "multiply":
+                node.layer.cached_inputs = input_tensors
             node.forward(*input_tensors, training=training)
         
         # Collecter les outputs
@@ -537,7 +577,7 @@ class Functional(Model):
             node_grads = node.backward(gradients[node])
             
             # Distribuer les gradients aux inputs
-            if not isinstance(node_grads, list):
+            if not isinstance(node_grads, (list, tuple)):
                 node_grads = [node_grads]
             
             for inp, grad in zip(node.inputs, node_grads):
@@ -669,18 +709,71 @@ class Functional(Model):
         Returns:
             Configuration
         """
-        node_configs = {}
-        
-        for node in self._all_nodes:
-            node_configs[node.name] = node.get_config()
+        if not self._topology_sorted:
+            self._topological_sort()
+        node_indices = {node: index for index, node in enumerate(self._forward_order)}
+        node_configs = []
+        for node in self._forward_order:
+            operation = "input" if node in self.input_nodes else getattr(
+                node.layer, "functional_operation", None
+            )
+            node_configs.append({
+                "name": node.name,
+                "operation": operation,
+                "layer_config": node.layer.get_config(),
+                "input_indices": [
+                    node_indices[inp] for inp in node.inputs
+                    if isinstance(inp, LayerNode)
+                ],
+            })
         
         return {
             'name': self.name,
-            'input_nodes': [inp.name for inp in self.input_nodes],
-            'output_nodes': [out.name for out in self.output_nodes],
+            'input_indices': [node_indices[inp] for inp in self.input_nodes],
+            'output_indices': [node_indices[out] for out in self.output_nodes],
             'nodes': node_configs,
+            'input_shape': self._input_shape,
+            'output_shape': self._output_shape,
             'class_name': self.__class__.__name__
         }
+
+    @classmethod
+    def from_config(cls, config: Dict[str, Any]):
+        """Rebuild a functional graph from its serialized node list."""
+        from .registry import registry
+
+        nodes = []
+        for node_config in config.get("nodes", []):
+            operation = node_config.get("operation")
+            layer_config = node_config["layer_config"]
+            input_nodes = [nodes[index] for index in node_config.get("input_indices", [])]
+
+            if operation == "input":
+                node = Input(tuple(layer_config["shape"]), name=node_config.get("name"))
+            elif operation == "add":
+                node = add(input_nodes, name=node_config.get("name"))
+            elif operation == "concatenate":
+                node = concatenate(
+                    input_nodes,
+                    axis=layer_config.get("axis", -1),
+                    name=node_config.get("name")
+                )
+            elif operation == "multiply":
+                node = multiply(input_nodes, name=node_config.get("name"))
+            else:
+                layer = registry.deserialize_layer(layer_config)
+                node = LayerNode(layer, node_config.get("name"))
+                node(*input_nodes)
+            nodes.append(node)
+
+        model = cls(
+            inputs=[nodes[index] for index in config["input_indices"]],
+            outputs=[nodes[index] for index in config["output_indices"]],
+            name=config.get("name")
+        )
+        if config.get("input_shape") is not None:
+            model.initialize(config["input_shape"])
+        return model
 
 # Fonctions utilitaires pour créer des modèles complexes
 def create_residual_block(input_node: LayerNode, 
@@ -701,17 +794,40 @@ def create_residual_block(input_node: LayerNode,
     Returns:
         Nœud de sortie du bloc
     """
-    from weli.layers import Conv2D, BatchNorm2D
     from .functional import Conv2D as Conv2D_func, BatchNorm2D as BatchNorm2D_func
-    
+    from .functional import ReLU as ReLU_func
+
+    def channels(node):
+        if isinstance(node, Input):
+            return node.layer.shape[-1]
+        layer = node.layer
+        if hasattr(layer, "filters"):
+            return layer.filters
+        if hasattr(layer, "units"):
+            return layer.units
+        if node.inputs and isinstance(node.inputs[0], LayerNode):
+            return channels(node.inputs[0])
+        return None
+
     # Branche principale
     x = Conv2D_func(filters, kernel_size, strides=strides, padding='same', 
                    name=f"{name}_conv1")(input_node)
     x = BatchNorm2D_func(name=f"{name}_bn1")(x)
-    
-    # TODO: Ajouter activation, deuxième conv, etc.
-    # Pour l'instant, retournons simplement x
-    return x
+    x = ReLU_func(name=f"{name}_relu1")(x)
+    x = Conv2D_func(filters, kernel_size, strides=1, padding='same',
+                    name=f"{name}_conv2")(x)
+    x = BatchNorm2D_func(name=f"{name}_bn2")(x)
+
+    shortcut = input_node
+    if strides != 1 or channels(input_node) != filters:
+        shortcut = Conv2D_func(
+            filters, 1, strides=strides, padding='same',
+            name=f"{name}_conv_short"
+        )(shortcut)
+        shortcut = BatchNorm2D_func(name=f"{name}_bn_short")(shortcut)
+
+    output = add([x, shortcut], name=f"{name}_add")
+    return ReLU_func(name=f"{name}_relu_out")(output)
 
 def create_inception_module(input_node: LayerNode,
                            filters_1x1: int,

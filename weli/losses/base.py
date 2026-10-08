@@ -333,7 +333,6 @@ class LossFunctionRegistry:
             raise TypeError(f"loss_class doit être une sous-classe de Loss, got {loss_class}")
         
         self._losses[name.lower()] = loss_class
-        print(f"✓ Fonction de perte enregistrée: {name} -> {loss_class.__name__}")
     
     def get(self, name: str, **kwargs) -> Loss:
         """

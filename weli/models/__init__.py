@@ -51,6 +51,16 @@ from .utils import (
     model_to_json, model_from_json
 )
 
+# Modèles pré-construits
+from .prebuilt import (
+    resnet18,
+    text_classifier_gru,
+    text_classifier_lstm,
+    generator_mlp,
+    discriminator_mlp,
+    gan_mlp,
+)
+
 __all__ = [
     # Classes de base
     'Model',
@@ -105,7 +115,15 @@ __all__ = [
     'get_layer_by_name',
     'get_layer_output',
     'model_to_json',
-    'model_from_json'
+    'model_from_json',
+
+    # Modèles pré-construits
+    'resnet18',
+    'text_classifier_gru',
+    'text_classifier_lstm',
+    'generator_mlp',
+    'discriminator_mlp',
+    'gan_mlp',
 ]
 
 # Ajouter les wrappers fonctionnels si disponibles
@@ -113,7 +131,7 @@ if _FUNCTIONAL_WRAPPERS_AVAILABLE:
     __all__.extend(['Dense', 'Conv2D', 'MaxPool2D', 'Flatten', 'Dropout', 'BatchNorm2D'])
 
 # Version
-__version__ = '0.1.0'
+__version__ = '1.0.0'
 
 # Fonctions utilitaires supplémentaires
 def create_sequential(layers=None, name="SequentialModel"):
@@ -151,17 +169,11 @@ __all__.extend(['create_sequential', 'create_model_from_config'])
 # Initialisation du registry
 def _init():
     """Initialise le module models."""
-    try:
-        # Enregistrer les classes de base
-        registry.register_model('Model', Model)
-        registry.register_model('Sequential', Sequential)
-        registry.register_model('Functional', Functional)
-        registry.register_model('ModelContainer', ModelContainer)
-        registry.register_model('Parallel', Parallel)
-        
-        print(f"✓ Module models v{__version__} initialisé")
-    except Exception as e:
-        print(f"⚠️ Warning lors de l'initialisation du module models: {e}")
+    registry.register_model('Model', Model)
+    registry.register_model('Sequential', Sequential)
+    registry.register_model('Functional', Functional)
+    registry.register_model('ModelContainer', ModelContainer)
+    registry.register_model('Parallel', Parallel)
 
 # Exécuter l'initialisation
 _init()

@@ -39,6 +39,23 @@ class CrossEntropy(Loss):
         """
         Calcule la cross-entropy.
         """
+        if y_pred.ndim > 1 and y_true.ndim == 1 and y_true.shape[0] == y_pred.shape[0]:
+            y_true = y_true.astype(int)
+            if np.any(y_true < 0) or np.any(y_true >= y_pred.shape[1]):
+                raise ValueError(
+                    f"Class indices out of range for y_pred shape {y_pred.shape}: "
+                    f"min={y_true.min()}, max={y_true.max()}"
+                )
+            y_true = np.eye(y_pred.shape[1], dtype=float)[y_true]
+        elif y_pred.ndim > 1 and y_true.ndim == 2 and y_true.shape == (y_pred.shape[0], 1):
+            y_true = y_true.reshape(-1).astype(int)
+            if np.any(y_true < 0) or np.any(y_true >= y_pred.shape[1]):
+                raise ValueError(
+                    f"Class indices out of range for y_pred shape {y_pred.shape}: "
+                    f"min={y_true.min()}, max={y_true.max()}"
+                )
+            y_true = np.eye(y_pred.shape[1], dtype=float)[y_true]
+
         self._validate_inputs(y_pred, y_true)
         self._prepare_inputs(y_pred, y_true)
         

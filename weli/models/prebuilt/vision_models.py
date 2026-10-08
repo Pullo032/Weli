@@ -10,9 +10,8 @@ from typing import Tuple, Optional
 
 from weli.models.functional import (
     Functional, Input, add,
-    Conv2D, BatchNorm2D, ReLU, MaxPool2D, Flatten
+    Conv2D, BatchNorm2D, ReLU, MaxPool2D, Flatten, Dense
 )
-from weli.layers import Dense
 
 
 def _resnet_block(x, filters: int, stride: int, name: str, use_conv_shortcut: bool):

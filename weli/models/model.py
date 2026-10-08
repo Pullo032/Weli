@@ -1,7 +1,5 @@
 import numpy as np
-from typing import Dict, List, Tuple, Optional, Any, Callable
-import pickle
-import json
+from typing import Dict, List, Tuple, Optional, Any
 
 class Model:
     """
@@ -56,14 +54,14 @@ class Model:
         Returns:
             Shape de l'output
         """
-        self._input_shape = input_shape
-        current_shape = input_shape
+        self._input_shape = tuple(input_shape)
+        current_shape = (None,) + tuple(input_shape)
         
         # Initialiser chaque couche
         for layer in self.layers:
             current_shape = layer.initialize(current_shape)
         
-        self._output_shape = current_shape
+        self._output_shape = current_shape[1:]
         self.initialized = True
         return self._output_shape
     
@@ -406,17 +404,8 @@ class Model:
         Args:
             filepath: Chemin du fichier
         """
-        model_data = {
-            'name': self.name,
-            'layers': [layer.get_config() for layer in self.layers],
-            'parameters': self.get_parameters(),
-            'input_shape': self._input_shape,
-            'output_shape': self._output_shape
-        }
-        
-        with open(filepath, 'wb') as f:
-            pickle.dump(model_data, f)
-        print(f"Model saved to {filepath}")
+        from .save_load import save_model
+        save_model(self, filepath)
     
     @classmethod
     def load(cls, filepath: str):
@@ -429,12 +418,11 @@ class Model:
         Returns:
             Modèle chargé
         """
-        with open(filepath, 'rb') as f:
-            model_data = pickle.load(f)
-        
-        # Recréer le modèle
-        # Note: Cette méthode doit être implémentée par les sous-classes
-        raise NotImplementedError("Subclasses must implement load method")
+        from .save_load import load_model
+        model = load_model(filepath, compile=False)
+        if not isinstance(model, cls):
+            raise ValueError(f"Saved model is {type(model).__name__}, not {cls.__name__}")
+        return model
     
     def summary(self):
         """

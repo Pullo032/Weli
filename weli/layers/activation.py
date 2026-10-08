@@ -79,6 +79,11 @@ class LeakyReLU(Activation):
     def backward(self, dout: np.ndarray) -> np.ndarray:
         return dout * np.where(self.input > 0, 1.0, self.alpha)
 
+    def get_config(self) -> Dict[str, Any]:
+        config = super().get_config()
+        config['alpha'] = self.alpha
+        return config
+
 class ELU(Activation):
     """Exponential Linear Unit: f(x) = x si x > 0, sinon α(exp(x) - 1)"""
     
@@ -94,6 +99,11 @@ class ELU(Activation):
     def backward(self, dout: np.ndarray) -> np.ndarray:
         grad = np.where(self.input > 0, 1.0, self.alpha * np.exp(self.input))
         return dout * grad
+
+    def get_config(self) -> Dict[str, Any]:
+        config = super().get_config()
+        config['alpha'] = self.alpha
+        return config
 
 def get_activation(name: str, **kwargs):
     """Factory pour obtenir une fonction d'activation."""

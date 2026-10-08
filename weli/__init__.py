@@ -4,7 +4,7 @@ Weli - Framework de Deep Learning en Python
 Un framework simple et intuitif pour créer et entraîner des réseaux de neurones.
 """
 
-__version__ = '0.1.0'
+__version__ = '1.0.0'
 __author__ = 'Weli Team'
 
 # Imports principaux
@@ -18,7 +18,9 @@ from . import backend
 # Exports principaux pour faciliter l'utilisation
 from .models import (
     Sequential, Functional, Model,
-    save_model, load_model
+    save_model, load_model,
+    resnet18, text_classifier_gru, text_classifier_lstm,
+    generator_mlp, discriminator_mlp, gan_mlp,
 )
 from .layers import (
     Layer, Dense,
@@ -28,10 +30,15 @@ from .layers import (
     SimpleRNN, LSTM, GRU
 )
 from .losses import (
-    Loss, MSE, MAE,
-    CrossEntropy, BinaryCrossEntropy
+    Loss,
+    MSE, MAE, HuberLoss, MSLE,
+    CrossEntropy, BinaryCrossEntropy,
+    CategoricalCrossEntropy, SparseCategoricalCrossEntropy,
+    HingeLoss, SquaredHingeLoss,
+    KLDivergence, PoissonLoss, CosineSimilarityLoss, LogCoshLoss,
+    DiceLoss, FocalLoss, TripletLoss, ContrastiveLoss, WassersteinLoss,
 )
-from .optimizers import SGD
+from .optimizers import SGD, Adam, RMSprop
 
 __all__ = [
     # Version
@@ -52,6 +59,12 @@ __all__ = [
     'Model',
     'save_model',
     'load_model',
+    'resnet18',
+    'text_classifier_gru',
+    'text_classifier_lstm',
+    'generator_mlp',
+    'discriminator_mlp',
+    'gan_mlp',
     
     # Couches
     'Layer',
@@ -64,10 +77,15 @@ __all__ = [
     
     # Losses
     'Loss',
-    'MSE', 'MAE',
+    'MSE', 'MAE', 'HuberLoss', 'MSLE',
     'CrossEntropy', 'BinaryCrossEntropy',
-    
+    'CategoricalCrossEntropy', 'SparseCategoricalCrossEntropy',
+    'HingeLoss', 'SquaredHingeLoss',
+    'KLDivergence', 'PoissonLoss', 'CosineSimilarityLoss', 'LogCoshLoss',
+    'DiceLoss', 'FocalLoss', 'TripletLoss', 'ContrastiveLoss', 'WassersteinLoss',
+
     # Optimizers
     'SGD',
+    'Adam',
+    'RMSprop',
 ]
-

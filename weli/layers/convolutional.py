@@ -79,11 +79,10 @@ class Conv2D(Layer):
         
         for i in range(k_h):
             for j in range(k_w):
-                np.add.at(dX[:, 
-                           i:i + out_h * self.strides[0]:self.strides[0],
-                           j:j + out_w * self.strides[1]:self.strides[1],
-                           :],
-                         dcols_reshaped[:, :, :, i, j, :])
+                dX[:,
+                   i:i + out_h * self.strides[0]:self.strides[0],
+                   j:j + out_w * self.strides[1]:self.strides[1],
+                   :] += dcols_reshaped[:, :, :, i, j, :]
         
         return dX
     
@@ -205,6 +204,19 @@ class Conv2D(Layer):
         
         return dx
 
+    def get_config(self) -> Dict[str, Any]:
+        config = super().get_config()
+        config.update({
+            'filters': self.filters,
+            'kernel_size': self.kernel_size,
+            'strides': self.strides,
+            'padding': self.padding,
+            'activation': self.activation_name,
+            'kernel_initializer': self.kernel_initializer_name,
+            'bias_initializer': self.bias_initializer_name,
+        })
+        return config
+
 class MaxPool2D(Layer):
     """
     Couche de pooling max 2D.
@@ -289,6 +301,15 @@ class MaxPool2D(Layer):
         
         return dx
 
+    def get_config(self) -> Dict[str, Any]:
+        config = super().get_config()
+        config.update({
+            'pool_size': self.pool_size,
+            'strides': self.strides,
+            'padding': self.padding,
+        })
+        return config
+
 class Flatten(Layer):
     """
     Couche pour aplatir l'input (ex: (batch, 28, 28, 1) -> (batch, 784)).
@@ -313,3 +334,6 @@ class Flatten(Layer):
     
     def backward(self, dout: np.ndarray) -> np.ndarray:
         return dout.reshape(self.input_shape)
+
+    def get_config(self) -> Dict[str, Any]:
+        return super().get_config()

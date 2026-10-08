@@ -1,7 +1,6 @@
 import numpy as np
 from typing import List, Optional, Tuple, Dict, Any
 from .model import Model
-import pickle
 
 class Sequential(Model):
     """
@@ -150,17 +149,8 @@ class Sequential(Model):
         """
         Sauvegarde le modèle Sequential complet.
         """
-        model_data = {
-            'name': self.name,
-            'layer_configs': [layer.get_config() for layer in self.layers],
-            'parameters': self.get_parameters(),
-            'input_shape': self._input_shape,
-            'output_shape': self._output_shape
-        }
-        
-        with open(filepath, 'wb') as f:
-            pickle.dump(model_data, f)
-        print(f"Sequential model saved to {filepath}")
+        from .save_load import save_model
+        save_model(self, filepath)
     
     @classmethod
     def load(cls, filepath: str):
@@ -173,25 +163,10 @@ class Sequential(Model):
         Returns:
             Modèle Sequential chargé
         """
-        with open(filepath, 'rb') as f:
-            model_data = pickle.load(f)
-        
-        # Créer une nouvelle instance
-        model = cls(name=model_data['name'])
-        
-        # Recréer les couches (simplifié - nécessiterait un registry)
-        # Pour l'instant, on suppose que les couches sont déjà ajoutées
-        # ou qu'on va les ajouter après
-        
-        # Charger les paramètres
-        if 'parameters' in model_data:
-            model.set_parameters(model_data['parameters'])
-        
-        # Définir les shapes
-        model._input_shape = model_data.get('input_shape')
-        model._output_shape = model_data.get('output_shape')
-        model.initialized = True
-        
+        from .save_load import load_model
+        model = load_model(filepath, compile=False)
+        if not isinstance(model, cls):
+            raise ValueError(f"Saved model is {type(model).__name__}, not {cls.__name__}")
         return model
     
     @classmethod
@@ -205,9 +180,14 @@ class Sequential(Model):
         Returns:
             Modèle Sequential
         """
-        # Cette méthode nécessiterait un registry des couches
-        # Pour l'instant, retourne un modèle vide
         model = cls(name=config.get('name'))
+        from .registry import registry
+        layer_configs = config.get('layer_configs', config.get('layers', []))
+        for layer_config in layer_configs:
+            model.add(registry.deserialize_layer(layer_config))
+        input_shape = config.get('input_shape')
+        if input_shape is not None:
+            model.initialize(tuple(input_shape))
         return model
     
     def get_config(self) -> Dict[str, Any]:
@@ -220,6 +200,7 @@ class Sequential(Model):
         return {
             'name': self.name,
             'layers': [layer.get_config() for layer in self.layers],
+            'layer_configs': [layer.get_config() for layer in self.layers],
             'input_shape': self._input_shape,
             'output_shape': self._output_shape,
             'class_name': self.__class__.__name__

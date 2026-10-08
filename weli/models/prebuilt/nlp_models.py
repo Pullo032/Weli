@@ -8,8 +8,8 @@ numériques déjà préparées (ex. embeddings pré-calculés).
 
 from typing import Tuple, Optional
 
-from weli.models.functional import Functional, Input
-from weli.layers import GRU, LSTM, Dropout, Dense
+from weli.models.functional import Functional, Input, LayerNode, Dense, Dropout
+from weli.layers import GRU, LSTM
 
 
 def text_classifier_gru(
@@ -30,7 +30,7 @@ def text_classifier_gru(
         name: nom du modèle
     """
     inputs = Input(shape=input_shape, name="input")
-    x = GRU(hidden_units, name="gru")(inputs)
+    x = LayerNode(GRU(hidden_units, name="gru"))(inputs)
     x = Dropout(dropout_rate, name="dropout")(x)
     outputs = Dense(num_classes, activation="softmax", name="classifier")(x)
     return Functional(inputs=inputs, outputs=outputs, name=name)
@@ -54,7 +54,7 @@ def text_classifier_lstm(
         name: nom du modèle
     """
     inputs = Input(shape=input_shape, name="input")
-    x = LSTM(hidden_units, name="lstm")(inputs)
+    x = LayerNode(LSTM(hidden_units, name="lstm"))(inputs)
     x = Dropout(dropout_rate, name="dropout")(x)
     outputs = Dense(num_classes, activation="softmax", name="classifier")(x)
     return Functional(inputs=inputs, outputs=outputs, name=name)

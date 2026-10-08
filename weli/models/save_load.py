@@ -68,8 +68,6 @@ def save_model(model,  # Type: tout objet avec get_parameters() et get_config()
             # Sauvegarde complète du modèle
             _save_full_model(model, filepath, include_optimizer, optimizer)
         
-        print(f"✓ Modèle sauvegardé avec succès: {filepath}")
-        
     except Exception as e:
         raise ModelSaveError(f"Échec de la sauvegarde du modèle: {str(e)}")
 
@@ -265,7 +263,6 @@ def load_model(filepath: str,
             except Exception as e:
                 warnings.warn(f"Impossible de recompiler le modèle: {e}")
         
-        print(f"✓ Modèle chargé avec succès: {filepath}")
         return model
         
     except Exception as e:
@@ -307,7 +304,7 @@ def _load_from_json(filepath: str, custom_objects: Optional[Dict[str, Any]] = No
         params = {}
         for key, value in model_data['parameters'].items():
             if isinstance(value, list):
-                params[key] = np.array(value, dtype=np.float32)
+                params[key] = np.array(value)
             else:
                 params[key] = value
         
@@ -424,7 +421,6 @@ def load_weights(model,
         else:
             _load_weights_by_order(model, params, skip_mismatch)
         
-        print(f"✓ Poids chargés avec succès: {filepath}")
         
     except Exception as e:
         raise ModelLoadError(f"Échec du chargement des poids: {str(e)}")
@@ -605,7 +601,6 @@ def save_model_architecture(model,
         with open(filepath, 'w', encoding='utf-8') as f:
             json.dump(arch_data, f, indent=2, default=str)
         
-        print(f"✓ Architecture sauvegardée: {filepath}")
         
     except Exception as e:
         raise ModelSaveError(f"Échec de la sauvegarde de l'architecture: {str(e)}")

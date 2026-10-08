@@ -9,8 +9,7 @@ flatten (l'utilisateur peut reshaper en sortie/entrée si besoin).
 
 from typing import Tuple, Optional
 
-from weli.models.functional import Functional, Input
-from weli.layers import Dense, Dropout
+from weli.models.functional import Functional, Input, LayerNode, Dense, Dropout
 from weli.layers.activation import LeakyReLU, Tanh, Sigmoid
 
 
@@ -33,9 +32,9 @@ def generator_mlp(
     x = inputs
     for i, units in enumerate(hidden_units):
         x = Dense(units, name=f"g_dense_{i}")(x)
-        x = LeakyReLU(alpha=0.2)(x)
+        x = LayerNode(LeakyReLU(alpha=0.2, name=f"g_relu_{i}"))(x)
     x = Dense(img_dim, name="g_out")(x)
-    outputs = Tanh(name="g_tanh")(x)  # sortie dans [-1, 1]
+    outputs = LayerNode(Tanh(name="g_tanh"))(x)  # sortie dans [-1, 1]
     return Functional(inputs=inputs, outputs=outputs, name=name)
 
 
@@ -58,10 +57,10 @@ def discriminator_mlp(
     x = inputs
     for i, units in enumerate(hidden_units):
         x = Dense(units, name=f"d_dense_{i}")(x)
-        x = LeakyReLU(alpha=0.2)(x)
+        x = LayerNode(LeakyReLU(alpha=0.2, name=f"d_relu_{i}"))(x)
         x = Dropout(dropout_rate, name=f"d_dropout_{i}")(x)
     x = Dense(1, name="d_out")(x)
-    outputs = Sigmoid(name="d_sigmoid")(x)  # probabilité réel/faux
+    outputs = LayerNode(Sigmoid(name="d_sigmoid"))(x)  # probabilité réel/faux
     return Functional(inputs=inputs, outputs=outputs, name=name)
 
 
@@ -81,6 +80,7 @@ def gan_mlp(
         gen_hidden: tailles des couches cachées du générateur
         disc_hidden: tailles des couches cachées du discriminateur
         disc_dropout: dropout du discriminateur
+        
 
     Returns:
         (generator, discriminator)

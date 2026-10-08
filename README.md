@@ -1,124 +1,248 @@
-# Weli - Framework de Deep Learning en Python
+# Weli
 
-Weli est un framework de deep learning écrit en Python, conçu pour être simple, intuitif et éducatif. Il permet de créer et d'entraîner des réseaux de neurones avec une API similaire à Keras/TensorFlow.
+**Weli** est un framework de deep learning en Python, construit autour de NumPy. Il propose une API pédagogique pour assembler, entraîner, évaluer et sauvegarder des réseaux de neurones.
 
-## 🚀 Fonctionnalités
+> Weli est un projet éducatif et léger. Il ne remplace pas les frameworks de production comme PyTorch ou TensorFlow.
 
-- **Modèles flexibles** : Sequential, Functional API, et modèles conteneurs
-- **Couches complètes** : Dense, Conv2D, RNN, LSTM, GRU, Dropout, BatchNorm, etc.
-- **Fonctions de perte** : MSE, MAE, CrossEntropy, et bien d'autres
-- **Optimiseurs** : SGD, Adam (à venir)
-- **Visualisation** : Architecture, historique d'entraînement, activations
-- **Export** : ONNX, TensorFlow Lite, CoreML, code C
-- **Sauvegarde/Chargement** : Formats .weli, .json, .npz
+## Sommaire
 
-## 📦 Installation
+- [Fonctionnalités](#fonctionnalités)
+- [Installation](#installation)
+- [Démarrage rapide](#démarrage-rapide)
+- [Principales API](#principales-api)
+- [Sauvegarder et recharger un modèle](#sauvegarder-et-recharger-un-modèle)
+- [Exemples et documentation](#exemples-et-documentation)
+- [Dépannage](README/depannage.md)
+- [Structure du dépôt](#structure-du-dépôt)
+- [Limites connues](#limites-connues)
+- [Tests](#tests)
+- [Contribuer](#contribuer)
+- [Licence](#licence)
 
-### Depuis les sources
+## Fonctionnalités
+
+- Modèles `Sequential`, modèles fonctionnels et conteneurs pour composer plusieurs modèles.
+- Couches denses, convolutives, récurrentes et d'attention, ainsi que des activations, du pooling, du dropout et de la normalisation.
+- Fonctions de perte pour la régression, la classification et l'apprentissage par similarité.
+- Optimiseurs SGD, RMSprop et Adam.
+- Entraînement par mini-batch, validation, évaluation et prédiction avec des tableaux NumPy.
+- Modèles de référence préconstruits pour la vision, le NLP et les GAN.
+- Outils de visualisation et de sauvegarde.
+- Génération de code C pour un sous-ensemble de modèles séquentiels.
+
+## Installation
+
+Weli requiert Python 3.7 ou une version ultérieure. Après la publication de Weli sur PyPI, installez-le avec ses dépendances d'exécution :
 
 ```bash
-# Cloner le repository
-git clone <url-du-repo>
-cd Weli
-
-# Créer un environnement virtuel
-python -m venv envweli
-source envweli/bin/activate  # Sur Windows: envweli\Scripts\activate
-
-# Installer les dépendances
-pip install -r requirements.txt
-
-# Installer le package
-pip install -e .
+python -m pip install weli-ml
 ```
 
-## 🎯 Utilisation rapide
+Pour travailler sur le code source, clonez le dépôt et installez le package en mode éditable :
+
+```bash
+git clone https://github.com/Pullo032/Weli.git
+cd Weli
+python -m venv .venv
+```
+
+Activez l'environnement virtuel, puis installez Weli :
+
+```bash
+# Windows PowerShell
+.\.venv\Scripts\Activate.ps1
+
+# macOS / Linux
+source .venv/bin/activate
+
+# Installation du package et des dépendances de test
+python -m pip install -e ".[test]"
+```
+
+L'installation en mode éditable convient au développement depuis un clone du dépôt. Pour installer depuis les sources sans le mode éditable, utilisez `python -m pip install .`.
+
+## Démarrage rapide
+
+Cet exemple crée et entraîne un petit modèle de régression, l'évalue, puis produit des prédictions. Les dimensions de `input_shape` excluent la dimension du batch.
 
 ```python
-from weli.models import Sequential
-from weli.layers import Dense, ReLU, Softmax
-from weli.losses import CrossEntropy
-from weli.optimizers import SGD
+import numpy as np
 
-# Créer un modèle
+from weli.layers import Dense
+from weli.losses import MSE
+from weli.models import Sequential, load_model
+from weli.optimizers import Adam
+
+np.random.seed(42)
+x = np.random.randn(256, 4)
+y = (2 * x[:, :1] - 0.5 * x[:, 1:2] + 0.1)
+
+x_train, y_train = x[:200], y[:200]
+x_val, y_val = x[200:], y[200:]
+
 model = Sequential([
-    Dense(128, activation='relu', input_dim=784),
-    Dense(64, activation='relu'),
-    Dense(10, activation='softmax')
+    Dense(16, activation="relu"),
+    Dense(1),
 ])
-
-# Compiler le modèle
 model.compile(
-    input_shape=(784,),
-    loss_fn=CrossEntropy(),
-    optimizer=SGD(lr=0.01)
+    input_shape=(4,),
+    loss_fn=MSE(),
+    optimizer=Adam(),
 )
 
-# Afficher le résumé
 model.summary()
-
-# Entraîner
 history = model.fit(
-    x_train, y_train,
-    epochs=50,
+    x_train,
+    y_train,
+    epochs=10,
     batch_size=32,
-    validation_data=(x_val, y_val)
+    validation_data=(x_val, y_val),
 )
 
-# Évaluer
-loss, accuracy = model.evaluate(x_test, y_test)
+loss, accuracy = model.evaluate(x_val, y_val)
+predictions = model.predict(x_val[:5])
 
-# Prédire
-predictions = model.predict(x_new)
-
-# Sauvegarder
-model.save('my_model.weli')
+model.save("regression.weli")
+restored_model = load_model("regression.weli", compile=False)
+restored_predictions = restored_model.predict(x_val[:5])
 ```
 
-## 📁 Structure du projet
+`history` est un dictionnaire contenant les métriques d'entraînement, notamment `train_loss`, `train_acc`, `val_loss` et `val_acc`. Pour une tâche de régression, la métrique d'accuracy n'est pas significative.
 
+## Principales API
+
+Les composants peuvent être importés depuis leur module ou, pour les symboles principaux, directement depuis `weli`.
+
+### Modèles
+
+```python
+from weli.models import Sequential, Functional, ModelContainer, Parallel
 ```
+
+- `Sequential` empile des couches dans un ordre linéaire.
+- `Functional` permet de construire des graphes avec des branches et des opérations de fusion.
+- `ModelContainer` compose des modèles en séquence.
+- `Parallel` exécute et fusionne des branches parallèles.
+
+Pour entraîner un modèle séquentiel, configurez-le avec `compile(input_shape=..., loss_fn=..., optimizer=...)`, puis appelez `fit(...)`. `evaluate(...)` renvoie la perte et l'accuracy calculées par le modèle ; `predict(...)` renvoie les sorties du réseau.
+
+### Couches
+
+```python
+from weli.layers import (
+    Dense, Conv2D, MaxPool2D, Flatten,
+    ReLU, Sigmoid, Tanh, Softmax,
+    Dropout, BatchNorm1D, BatchNorm2D,
+    SimpleRNN, LSTM, GRU,
+    MultiHeadAttention, SelfAttention,
+)
+```
+
+La disponibilité d'une couche ne signifie pas que toutes les combinaisons d'architectures sont compatibles. Consultez les exemples et les guides avant d'assembler des architectures avancées.
+
+### Fonctions de perte
+
+```python
+from weli.losses import MSE, MAE, HuberLoss, CrossEntropy, BinaryCrossEntropy
+```
+
+Le package inclut notamment `MSE`, `MAE`, `HuberLoss`, `MSLE`, `CrossEntropy`, `BinaryCrossEntropy`, `CategoricalCrossEntropy`, `SparseCategoricalCrossEntropy`, `HingeLoss`, `SquaredHingeLoss`, `KLDivergence`, `PoissonLoss`, `CosineSimilarityLoss`, `LogCoshLoss`, `DiceLoss`, `FocalLoss`, `TripletLoss`, `ContrastiveLoss` et `WassersteinLoss`.
+
+`CrossEntropy` accepte des indices de classe entiers ou des labels one-hot pour une sortie multi-classes. Respectez les formes et les conventions de labels attendues par la perte choisie.
+
+### Optimiseurs
+
+```python
+from weli.optimizers import SGD, RMSprop, Adam
+
+optimizer = SGD(lr=0.01, momentum=0.9)
+```
+
+Les optimiseurs sont fournis au modèle via `compile()` ou `fit()`.
+
+### Modèles préconstruits
+
+```python
+from weli.models import (
+    resnet18,
+    text_classifier_gru,
+    text_classifier_lstm,
+    generator_mlp,
+    discriminator_mlp,
+    gan_mlp,
+)
+```
+
+Ces architectures sont des modèles de référence destinés à servir de point de départ à l'apprentissage et à l'expérimentation.
+
+## Sauvegarder et recharger un modèle
+
+Un modèle séquentiel peut être sauvegardé et rechargé comme suit :
+
+```python
+from weli.models import load_model, save_model
+
+save_model(model, "model.weli")
+loaded_model = load_model("model.weli", compile=False)
+```
+
+La méthode `model.save(path)` est également disponible. La sauvegarde complète utilise par défaut le format Weli si aucune extension prise en charge n'est fournie ; la sauvegarde des seuls poids prend par défaut le format NPZ. Les formats et options disponibles sont documentés dans le guide des [modèles](weli/models/README.md).
+
+**Sécurité :** certains formats de sauvegarde complets reposent sur la sérialisation Python. Ne chargez jamais un fichier de modèle provenant d'une source non fiable.
+
+## Exemples et documentation
+
+- [Documentation détaillée](README/README.md) : guides d'installation, modèles, couches, pertes, optimiseurs, entraînement, exemples et dépannage.
+- [Référence complète de l'API](README/api.md) : symboles exportés, conventions des données et outils disponibles.
+- [Guide des modèles](weli/models/README.md) : API séquentielle et fonctionnelle, sérialisation et exports.
+- [Exemple de régression](examples/regression.py) et [guide des exemples](examples/README.md).
+- [Application de documentation](Frontend/weli-frontend/) : site de documentation Weli.
+
+Les guides Markdown sont également inclus dans l'archive source. La
+[documentation du dépôt sur GitHub](https://github.com/Pullo032/Weli/tree/main/README)
+est consultable sans installer le paquet.
+
+## Structure du dépôt
+
+```text
 Weli/
-├── weli/                 # Package principal
-│   ├── models/          # Modèles (Sequential, Functional, etc.)
-│   ├── layers/          # Couches du réseau
-│   ├── losses/          # Fonctions de perte
-│   ├── optimizers/      # Optimiseurs
-│   ├── backend/         # Backend de calcul (NumPy)
-│   └── utils/           # Utilitaires
-├── examples/            # Exemples d'utilisation
-├── testes/              # Tests
-├── requirements.txt     # Dépendances
-├── setup.py            # Configuration d'installation
-└── README.md           # Ce fichier
+├── weli/
+│   ├── backend/       # Backend de calcul
+│   ├── layers/        # Couches et opérations
+│   ├── losses/        # Fonctions de perte
+│   ├── models/        # Modèles, conteneurs, sauvegarde et export
+│   ├── optimizers/    # Optimiseurs
+│   └── utils/         # Utilitaires
+├── examples/          # Exemples exécutables
+├── testes/            # Tests automatisés
+├── Frontend/          # Site React de documentation
+├── README/            # Guides de documentation
+├── requirements.txt   # Dépendances d'exécution
+├── setup.py           # Métadonnées et configuration du package
+└── pyproject.toml     # Configuration du système de build
 ```
 
-## 📚 Documentation
+## Limites connues
 
-Pour plus de détails sur les modèles, consultez `weli/models/REDME.md`.
+- Weli vise l'apprentissage et l'expérimentation ; ses performances et sa couverture ne sont pas celles d'un framework de deep learning de production.
+- `generate_c_code()` ne prend actuellement en charge que les modèles `Sequential` constitués de couches `Dense` et d'activations ReLU, Sigmoid, Tanh ou Softmax.
+- Les exports ONNX, TensorFlow Lite et CoreML ne sont pas implémentés ; leurs fonctions lèvent `NotImplementedError`.
+- Les modèles préconstruits sont des architectures de référence, et non un catalogue complet de modèles pré-entraînés.
 
-## 🧪 Tests
+## Tests
+
+Depuis la racine du dépôt, installez les dépendances de test (`python -m pip install -e ".[test]"`), puis lancez :
 
 ```bash
-# Exécuter les tests
-python -m pytest testes/ -v
+python -m pytest testes -v
 ```
 
-## 🤝 Contribution
+## Contribuer
 
-Les contributions sont les bienvenues ! N'hésitez pas à ouvrir une issue ou une pull request.
+Les contributions sont les bienvenues. Pour proposer une évolution ou signaler un problème, ouvrez une [issue](https://github.com/Pullo032/Weli/issues) ou une pull request sur le dépôt.
 
-## 📝 Licence
+Avant de soumettre une contribution, exécutez les tests concernés et décrivez les changements ainsi que les éventuelles limites.
 
-Voir le fichier LICENSE pour plus de détails.
+## Licence
 
-## 🔗 Dépendances principales
-
-- NumPy : Calculs numériques
-- Matplotlib : Visualisation
-- (Autres dépendances dans requirements.txt)
-
-## 📧 Contact
-
-Pour toute question ou suggestion, n'hésitez pas à ouvrir une issue sur GitHub.
-
+Weli est distribué sous licence MIT. Consultez le fichier [LICENSE](LICENSE) pour les conditions complètes.

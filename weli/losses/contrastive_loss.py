@@ -1,9 +1,10 @@
-"""
-Contrastive Loss pour Weli.
+"""Contrastive Loss pour Weli.
 
-À implémenter:
-- ContrastiveLoss: Pour l'apprentissage contrastif
-- Utile pour Siamese networks
-- Maximise la similarité entre paires positives
+La classe publique est ré-exportée depuis ``weli.losses.advanced`` pour garder
+une implémentation unique et cohérente avec le reste du package.
 """
+
+from .advanced import ContrastiveLoss
+
+__all__ = ["ContrastiveLoss"]
 

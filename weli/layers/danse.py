@@ -56,10 +56,10 @@ class Dense(Layer):
             raise ValueError(f"Unknown bias initializer: {self.bias_initializer_name}")
     
     def initialize(self, input_shape: tuple) -> tuple:
-        if len(input_shape) != 2:
-            raise ValueError(f"Dense expects 2D input, got {len(input_shape)}D")
-        
-        batch_size, input_dim = input_shape
+        if len(input_shape) not in (1, 2):
+            raise ValueError(f"Dense expects feature or batch-feature shape, got {len(input_shape)}D")
+
+        input_dim = input_shape[-1]
         
         if self.input_dim is None:
             self.input_dim = input_dim
@@ -75,7 +75,8 @@ class Dense(Layer):
             self.parameters['b'] = self._initialize_bias((1, self.units))
             self.gradients['b'] = np.zeros_like(self.parameters['b'])
         
-        self.output_shape = (batch_size, self.units)
+        self.input_shape = input_shape
+        self.output_shape = input_shape[:-1] + (self.units,)
         return self.output_shape
     
     def forward(self, x: np.ndarray) -> np.ndarray:

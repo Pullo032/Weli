@@ -1,166 +1,176 @@
-"""
-Conteneurs de modèles pour des architectures complexes.
-"""
+"""Composition helpers for chaining or running models in parallel."""
+from typing import Any, Dict, List, Optional, Tuple
+
 import numpy as np
-from typing import Dict, List, Tuple, Optional, Any
+
 from .model import Model
 
+
 class ModelContainer(Model):
-    """
-    Conteneur pour combiner plusieurs modèles.
-    """
-    
+    """Compose models as a linear pipeline, feeding each output to the next."""
+
     def __init__(self, models: List[Model], name: Optional[str] = None):
-        """
-        Initialise un conteneur de modèles.
-        
-        Args:
-            models: Liste de modèles
-            name: Nom du conteneur
-        """
         super().__init__(name)
-        self.models = models
-        
-        # Collecter toutes les couches
-        for model in models:
+        if not models:
+            raise ValueError("ModelContainer requires at least one model.")
+        if not all(isinstance(model, Model) for model in models):
+            raise TypeError("Every item in models must be a Model instance.")
+
+        self.models = list(models)
+        for model in self.models:
             self.layers.extend(model.layers)
             self.trainable_layers.extend(model.trainable_layers)
-    
-    def forward(self, x: np.ndarray, training: bool = True) -> np.ndarray:
-        """
-        Propagation avant à travers tous les modèles.
-        
-        Args:
-            x: Input
-            training: Mode entraînement
-            
-        Returns:
-            Sortie
-        """
-        outputs = []
-        for model in self.models:
-            output = model.forward(x, training)
-            outputs.append(output)
-        
-        # Pour l'instant, retourne seulement le premier
-        # On pourrait ajouter une logique de fusion
-        return outputs[0]
-    
-    def backward(self, dout: np.ndarray) -> np.ndarray:
-        """
-        Rétropropagation.
-        """
-        # Backward à travers tous les modèles
-        gradients = []
-        for model in self.models:
-            grad = model.backward(dout)
-            gradients.append(grad)
-        
-        return gradients[0]
 
-class Parallel(Model):
-    """
-    Modèle parallèle - exécute plusieurs modèles en parallèle.
-    """
-    
-    def __init__(self, branches: List[Model], merge_op: str = 'concat', 
-                 name: Optional[str] = None):
-        """
-        Initialise un modèle parallèle.
-        
-        Args:
-            branches: Liste de modèles (branches)
-            merge_op: Opération de fusion ('concat', 'add', 'average')
-            name: Nom du modèle
-        """
-        super().__init__(name)
-        self.branches = branches
-        self.merge_op = merge_op
-        
-        # Collecter toutes les couches
-        for branch in branches:
-            self.layers.extend(branch.layers)
-            self.trainable_layers.extend(branch.trainable_layers)
-    
     def initialize(self, input_shape: Tuple) -> Tuple:
-        """
-        Initialise toutes les branches.
-        """
-        output_shapes = []
-        for branch in self.branches:
-            shape = branch.initialize(input_shape)
-            output_shapes.append(shape)
-        
-        # Calculer la shape de sortie fusionnée
-        if self.merge_op == 'concat':
-            # Concaténation sur le dernier axe
-            total_features = sum(shape[-1] for shape in output_shapes)
-            self._output_shape = output_shapes[0][:-1] + (total_features,)
-        elif self.merge_op in ['add', 'average']:
-            # Toutes les branches doivent avoir la même shape
-            for shape in output_shapes[1:]:
-                if shape != output_shapes[0]:
-                    raise ValueError(f"All branches must have same shape for {self.merge_op}")
-            self._output_shape = output_shapes[0]
-        
+        current_shape = tuple(input_shape)
+        self._input_shape = current_shape
+        for model in self.models:
+            current_shape = tuple(model.initialize(current_shape))
+        self._output_shape = current_shape
         self.initialized = True
         return self._output_shape
-    
+
     def forward(self, x: np.ndarray, training: bool = True) -> np.ndarray:
-        """
-        Propagation avant parallèle.
-        """
-        branch_outputs = []
-        for branch in self.branches:
-            output = branch.forward(x, training)
-            branch_outputs.append(output)
-        
-        # Fusionner les sorties
-        if self.merge_op == 'concat':
-            return np.concatenate(branch_outputs, axis=-1)
-        elif self.merge_op == 'add':
-            result = branch_outputs[0]
-            for out in branch_outputs[1:]:
-                result += out
-            return result
-        elif self.merge_op == 'average':
-            result = branch_outputs[0]
-            for out in branch_outputs[1:]:
-                result += out
-            return result / len(branch_outputs)
-        else:
-            raise ValueError(f"Unknown merge operation: {self.merge_op}")
-    
+        if not self.initialized:
+            self.initialize(x.shape[1:])
+
+        output = x
+        for model in self.models:
+            output = model.forward(output, training=training)
+        return output
+
     def backward(self, dout: np.ndarray) -> np.ndarray:
-        """
-        Rétropropagation.
-        """
-        if self.merge_op == 'concat':
-            # Split le gradient
+        gradient = dout
+        for model in reversed(self.models):
+            gradient = model.backward(gradient)
+        return gradient
+
+    def get_config(self) -> Dict[str, Any]:
+        return {
+            "class_name": self.__class__.__name__,
+            "name": self.name,
+            "models": [model.get_config() for model in self.models],
+            "input_shape": self._input_shape,
+        }
+
+    @classmethod
+    def from_config(cls, config: Dict[str, Any]) -> "ModelContainer":
+        from .registry import registry
+
+        models = [registry.deserialize_model(model_config)
+                  for model_config in config.get("models", [])]
+        container = cls(models, name=config.get("name"))
+        input_shape = config.get("input_shape")
+        if input_shape is not None:
+            container.initialize(tuple(input_shape))
+        return container
+
+
+class Parallel(Model):
+    """Run models on the same input and merge their outputs."""
+
+    _MERGE_OPERATIONS = {"concat", "add", "average"}
+
+    def __init__(
+        self,
+        branches: List[Model],
+        merge_op: str = "concat",
+        name: Optional[str] = None,
+    ):
+        super().__init__(name)
+        if not branches:
+            raise ValueError("Parallel requires at least one branch.")
+        if not all(isinstance(branch, Model) for branch in branches):
+            raise TypeError("Every branch must be a Model instance.")
+        if merge_op not in self._MERGE_OPERATIONS:
+            choices = ", ".join(sorted(self._MERGE_OPERATIONS))
+            raise ValueError(f"Unknown merge_op {merge_op!r}; expected one of: {choices}.")
+
+        self.branches = list(branches)
+        self.merge_op = merge_op
+        for branch in self.branches:
+            self.layers.extend(branch.layers)
+            self.trainable_layers.extend(branch.trainable_layers)
+
+    def initialize(self, input_shape: Tuple) -> Tuple:
+        self._input_shape = tuple(input_shape)
+        output_shapes = [tuple(branch.initialize(self._input_shape))
+                         for branch in self.branches]
+
+        if self.merge_op == "concat":
+            first_shape = output_shapes[0]
+            if not first_shape:
+                raise ValueError("Cannot concatenate scalar branch outputs.")
+            for shape in output_shapes[1:]:
+                if len(shape) != len(first_shape) or shape[:-1] != first_shape[:-1]:
+                    raise ValueError(
+                        "All branch output shapes must match except on the "
+                        f"last axis for concat; got {output_shapes}."
+                    )
+            self._output_shape = first_shape[:-1] + (
+                sum(shape[-1] for shape in output_shapes),
+            )
+        else:
+            if any(shape != output_shapes[0] for shape in output_shapes[1:]):
+                raise ValueError(
+                    f"All branch output shapes must match for {self.merge_op}; "
+                    f"got {output_shapes}."
+                )
+            self._output_shape = output_shapes[0]
+
+        self.initialized = True
+        return self._output_shape
+
+    def forward(self, x: np.ndarray, training: bool = True) -> np.ndarray:
+        if not self.initialized:
+            self.initialize(x.shape[1:])
+
+        outputs = [branch.forward(x, training=training) for branch in self.branches]
+        if self.merge_op == "concat":
+            return np.concatenate(outputs, axis=-1)
+        if self.merge_op == "add":
+            return np.add.reduce(outputs)
+        return np.add.reduce(outputs) / len(outputs)
+
+    def backward(self, dout: np.ndarray) -> np.ndarray:
+        if self.merge_op == "concat":
             sizes = [branch._output_shape[-1] for branch in self.branches]
-            splits = np.split(dout, np.cumsum(sizes)[:-1], axis=-1)
-            
-            gradients = []
-            for branch, split in zip(self.branches, splits):
-                grad = branch.backward(split)
-                gradients.append(grad)
-            
-            # Combiner les gradients (moyenne)
-            combined_grad = gradients[0]
-            for grad in gradients[1:]:
-                combined_grad += grad
-            return combined_grad / len(gradients)
-        
-        elif self.merge_op in ['add', 'average']:
-            # Gradient distribué également
-            gradients = []
-            for branch in self.branches:
-                grad = branch.backward(dout)
-                gradients.append(grad)
-            
-            if self.merge_op == 'add':
-                # Pour 'add', le gradient est le même pour tous
-                return gradients[0]
-            else:  # 'average'
-                # Pour 'average', diviser par le nombre de branches
-                return gradients[0] / len(self.branches)
+            branch_gradients = np.split(dout, np.cumsum(sizes)[:-1], axis=-1)
+        elif self.merge_op == "average":
+            branch_gradients = [dout / len(self.branches)] * len(self.branches)
+        else:
+            branch_gradients = [dout] * len(self.branches)
+
+        input_gradients = [
+            branch.backward(gradient)
+            for branch, gradient in zip(self.branches, branch_gradients)
+        ]
+        combined = input_gradients[0].copy()
+        for gradient in input_gradients[1:]:
+            combined += gradient
+        return combined
+
+    def get_config(self) -> Dict[str, Any]:
+        return {
+            "class_name": self.__class__.__name__,
+            "name": self.name,
+            "merge_op": self.merge_op,
+            "branches": [branch.get_config() for branch in self.branches],
+            "input_shape": self._input_shape,
+        }
+
+    @classmethod
+    def from_config(cls, config: Dict[str, Any]) -> "Parallel":
+        from .registry import registry
+
+        branches = [registry.deserialize_model(branch_config)
+                    for branch_config in config.get("branches", [])]
+        parallel = cls(
+            branches,
+            merge_op=config.get("merge_op", "concat"),
+            name=config.get("name"),
+        )
+        input_shape = config.get("input_shape")
+        if input_shape is not None:
+            parallel.initialize(tuple(input_shape))
+        return parallel

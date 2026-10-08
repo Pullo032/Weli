@@ -1,8 +1,9 @@
 """
 Registry pour la sérialisation/désérialisation des modèles et couches.
 """
-from typing import Dict, Type, Any, Callable
+from typing import Dict, Type, Any
 import importlib
+import numpy as np
 
 class ModelRegistry:
     """
@@ -56,16 +57,24 @@ class ModelRegistry:
         """
         if name in self._models:
             return self._models[name]
+        if name in self._custom_objects:
+            model_class = self._custom_objects[name]
+            if isinstance(model_class, type):
+                self.register_model(name, model_class)
+                return model_class
+            raise ValueError(f"Custom model object '{name}' must be a class.")
         
         # Essayer d'importer dynamiquement
         try:
             module_name, class_name = name.rsplit('.', 1)
             module = importlib.import_module(module_name)
             model_class = getattr(module, class_name)
+            if not isinstance(model_class, type):
+                raise TypeError(f"'{name}' is not a class.")
             self.register_model(name, model_class)
             return model_class
-        except (ImportError, AttributeError):
-            raise ValueError(f"Model class '{name}' not found in registry")
+        except (ImportError, AttributeError, TypeError, ValueError) as error:
+            raise ValueError(f"Model class '{name}' not found in registry") from error
     
     def get_layer(self, name: str) -> Type:
         """
@@ -79,16 +88,24 @@ class ModelRegistry:
         """
         if name in self._layers:
             return self._layers[name]
+        if name in self._custom_objects:
+            layer_class = self._custom_objects[name]
+            if isinstance(layer_class, type):
+                self.register_layer(name, layer_class)
+                return layer_class
+            raise ValueError(f"Custom layer object '{name}' must be a class.")
         
         # Essayer d'importer dynamiquement
         try:
             module_name, class_name = name.rsplit('.', 1)
             module = importlib.import_module(module_name)
             layer_class = getattr(module, class_name)
+            if not isinstance(layer_class, type):
+                raise TypeError(f"'{name}' is not a class.")
             self.register_layer(name, layer_class)
             return layer_class
-        except (ImportError, AttributeError):
-            raise ValueError(f"Layer class '{name}' not found in registry")
+        except (ImportError, AttributeError, TypeError, ValueError) as error:
+            raise ValueError(f"Layer class '{name}' not found in registry") from error
     
     def get_custom_object(self, name: str) -> Any:
         """
@@ -121,25 +138,10 @@ class ModelRegistry:
         model_class = self.get_model(model_class_name)
         
         if model_class_name == 'Sequential':
-            from .sequential import Sequential
-            model = Sequential(name=config.get('name'))
-            
-            # Créer les couches
-            for layer_config in config.get('layer_configs', []):
-                layer = self.deserialize_layer(layer_config)
-                model.add(layer)
-            
-            # Charger les paramètres si disponibles
-            if 'parameters' in config:
-                model.set_parameters(config['parameters'])
-            
-            return model
+            return model_class.from_config(config)
         
         elif model_class_name == 'Functional':
-            # Plus complexe - nécessite de reconstruire le graphe
-            # Pour l'instant, retourner un modèle vide
-            from .functional import Functional
-            return Functional(inputs=[], outputs=[], name=config.get('name'))
+            return model_class.from_config(config)
         
         else:
             # Pour les autres modèles, utiliser from_config si disponible
@@ -168,6 +170,12 @@ class ModelRegistry:
         layer_config = config.copy()
         layer_config.pop('class_name', None)
         layer_config.pop('name', None)
+        trainable = layer_config.pop('trainable', None)
+        state = {
+            key: layer_config.pop(key)
+            for key in ('running_mean', 'running_var')
+            if key in layer_config
+        }
         
         # Créer la couche
         layer = layer_class(**layer_config)
@@ -175,7 +183,13 @@ class ModelRegistry:
         # Définir le nom si spécifié
         if 'name' in config:
             layer.name = config['name']
-        
+        if trainable is not None:
+            layer.trainable = trainable
+        if state:
+            layer._serialized_state = {
+                key: None if value is None else np.asarray(value)
+                for key, value in state.items()
+            }
         return layer
 
 # Instance globale du registry
@@ -187,39 +201,29 @@ def register_default_classes():
     from .model import Model
     from .sequential import Sequential
     from .functional import Functional
+    from .container import ModelContainer, Parallel
     
     # Enregistrer les modèles
     registry.register_model('Model', Model)
     registry.register_model('Sequential', Sequential)
     registry.register_model('Functional', Functional)
+    registry.register_model('ModelContainer', ModelContainer)
+    registry.register_model('Parallel', Parallel)
     
-    # Enregistrer les couches (importées dynamiquement)
-    try:
-        from ..layers import (
-            Dense, Conv2D, MaxPool2D, Flatten, Dropout,
-            BatchNorm1D, BatchNorm2D, ReLU, Sigmoid, Tanh,
-            Softmax, LeakyReLU, ELU, SimpleRNN, LSTM, GRU
-        )
-        
-        registry.register_layer('Dense', Dense)
-        registry.register_layer('Conv2D', Conv2D)
-        registry.register_layer('MaxPool2D', MaxPool2D)
-        registry.register_layer('Flatten', Flatten)
-        registry.register_layer('Dropout', Dropout)
-        registry.register_layer('BatchNorm1D', BatchNorm1D)
-        registry.register_layer('BatchNorm2D', BatchNorm2D)
-        registry.register_layer('ReLU', ReLU)
-        registry.register_layer('Sigmoid', Sigmoid)
-        registry.register_layer('Tanh', Tanh)
-        registry.register_layer('Softmax', Softmax)
-        registry.register_layer('LeakyReLU', LeakyReLU)
-        registry.register_layer('ELU', ELU)
-        registry.register_layer('SimpleRNN', SimpleRNN)
-        registry.register_layer('LSTM', LSTM)
-        registry.register_layer('GRU', GRU)
-        
-    except ImportError:
-        pass
+    from ..layers import (
+        Dense, Conv2D, MaxPool2D, Flatten, Dropout,
+        BatchNorm1D, BatchNorm2D, ReLU, Sigmoid, Tanh,
+        Softmax, LeakyReLU, ELU, SimpleRNN, LSTM, GRU,
+        MultiHeadAttention, SelfAttention
+    )
+
+    for layer_class in (
+        Dense, Conv2D, MaxPool2D, Flatten, Dropout,
+        BatchNorm1D, BatchNorm2D, ReLU, Sigmoid, Tanh,
+        Softmax, LeakyReLU, ELU, SimpleRNN, LSTM, GRU,
+        MultiHeadAttention, SelfAttention
+    ):
+        registry.register_layer(layer_class.__name__, layer_class)
 
 # Appeler l'enregistrement
 register_default_classes()

@@ -44,8 +44,18 @@ class BatchNorm1D(Layer):
         # Statistiques courantes
         self.running_mean = np.zeros((1, features))
         self.running_var = np.ones((1, features))
+        self._restore_running_statistics()
         
         return input_shape
+
+    def _restore_running_statistics(self):
+        state = getattr(self, '_serialized_state', {})
+        for name in ('running_mean', 'running_var'):
+            value = state.get(name)
+            if value is not None:
+                setattr(self, name, value)
+        if state:
+            del self._serialized_state
     
     def forward(self, x: np.ndarray) -> np.ndarray:
         self.input = x
@@ -96,6 +106,13 @@ class BatchNorm1D(Layer):
         
         return dx
 
+    def get_config(self) -> Dict[str, Any]:
+        config = super().get_config()
+        config.update({'momentum': self.momentum, 'epsilon': self.epsilon})
+        config['running_mean'] = self.running_mean
+        config['running_var'] = self.running_var
+        return config
+
 class BatchNorm2D(BatchNorm1D):
     """
     Normalisation par batch pour les couches Conv2D.
@@ -127,8 +144,10 @@ class BatchNorm2D(BatchNorm1D):
         # Statistiques courantes
         self.running_mean = np.zeros((1, 1, 1, channels))
         self.running_var = np.ones((1, 1, 1, channels))
+        self._restore_running_statistics()
         
         return input_shape
+
     
     def forward(self, x: np.ndarray) -> np.ndarray:
         self.input = x
@@ -152,3 +171,33 @@ class BatchNorm2D(BatchNorm1D):
         
         # Reshape back
         x_norm_reshaped = self.x_norm
+        x_norm_reshaped = x_norm_reshaped.reshape(batch_size, height, width, channels)
+        self.output = self.parameters['gamma'] * x_norm_reshaped + self.parameters['beta']
+        return self.output
+
+    def backward(self, dout: np.ndarray) -> np.ndarray:
+        batch_size, height, width, channels = self.input.shape
+        sample_count = batch_size * height * width
+        dout_flat = dout.reshape(sample_count, channels)
+        gamma = self.parameters['gamma'].reshape(1, channels)
+
+        self.gradients['gamma'] = np.sum(
+            dout * self.x_norm.reshape(batch_size, height, width, channels),
+            axis=(0, 1, 2), keepdims=True
+        )
+        self.gradients['beta'] = np.sum(dout, axis=(0, 1, 2), keepdims=True)
+
+        dx_norm = dout_flat * gamma
+        if self.training:
+            dx_flat = (dx_norm - np.mean(dx_norm, axis=0, keepdims=True)
+                       - self.x_norm * np.mean(
+                           dx_norm * self.x_norm, axis=0, keepdims=True
+                       )) / self.std
+        else:
+            dx_flat = dx_norm / np.sqrt(self.running_var.reshape(1, channels) + self.epsilon)
+        return dx_flat.reshape(batch_size, height, width, channels)
+
+    def get_config(self) -> Dict[str, Any]:
+        config = super().get_config()
+        config.update({'momentum': self.momentum, 'epsilon': self.epsilon})
+        return config

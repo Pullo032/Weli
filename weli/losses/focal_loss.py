@@ -1,9 +1,11 @@
-"""
-Focal Loss pour Weli.
+"""Focal Loss pour Weli.
 
-À implémenter:
-- FocalLoss: Pour gérer le déséquilibre de classes
-- Utile pour la détection d'objets et segmentation
-- Réduit l'importance des exemples faciles
+Cette implémentation est exposée à travers la classe ``FocalLoss`` définie dans
+``weli.losses.advanced``. Le module découpe explicitement l’API publique pour les
+utilisateurs qui souhaitent importer la classe depuis son fichier dédié.
 """
+
+from .advanced import FocalLoss
+
+__all__ = ["FocalLoss"]
 

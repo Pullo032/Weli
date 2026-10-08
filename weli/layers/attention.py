@@ -29,19 +29,24 @@ class MultiHeadAttention(Layer):
     Args:
         d_model: dimension du modèle (features d'entrée)
         num_heads: nombre de têtes (d_model doit être divisible par num_heads)
-        dropout: ignoré pour l'instant (placeholder)
+        dropout: taux de dropout appliqué aux poids d'attention pendant l'entraînement
         name: nom de la couche
     """
 
     def __init__(self, d_model: int, num_heads: int = 8,
                  dropout: float = 0.0, name: Optional[str] = None):
         super().__init__(name)
-        if d_model % num_heads != 0:
+        if num_heads <= 0:
+            raise ValueError("num_heads must be positive")
+        if d_model <= 0 or d_model % num_heads != 0:
             raise ValueError("d_model must be divisible by num_heads")
+        if not 0.0 <= dropout < 1.0:
+            raise ValueError("dropout must be in [0, 1)")
         self.d_model = d_model
         self.num_heads = num_heads
         self.depth = d_model // num_heads
-        self.dropout = dropout  # non utilisé
+        self.dropout = float(dropout)
+        self._attention_dropout_mask = None
 
         # Poids
         self.parameters = {
@@ -59,11 +64,19 @@ class MultiHeadAttention(Layer):
         # Cache pour backward
         self._cache = {}
 
-    def initialize(self, input_shape: Tuple[int, int]) -> Tuple[int, int]:
+    def initialize(self, input_shape: Tuple[int, ...]) -> Tuple[int, ...]:
         """
-        input_shape: (seq_len, d_model)
+        input_shape: (seq_len, d_model) or (batch, seq_len, d_model)
         """
-        seq_len, dim = input_shape
+        if len(input_shape) == 2:
+            seq_len, dim = input_shape
+        elif len(input_shape) == 3:
+            _, seq_len, dim = input_shape
+        else:
+            raise ValueError(
+                "MultiHeadAttention expects (seq_len, d_model) or "
+                "(batch, seq_len, d_model) input shapes."
+            )
         if dim != self.d_model:
             raise ValueError(f"Expected d_model={self.d_model}, got {dim}")
 
@@ -81,6 +94,7 @@ class MultiHeadAttention(Layer):
         self.parameters["b_v"] = np.zeros((self.d_model,))
         self.parameters["b_o"] = np.zeros((self.d_model,))
 
+        self.input_shape = input_shape
         self.output_shape = input_shape
         return self.output_shape
 
@@ -112,6 +126,7 @@ class MultiHeadAttention(Layer):
         Returns:
             out: (batch, seq_q, d_model)
         """
+        self._single_input = key is None and value is None
         if key is None:
             key = query
         if value is None:
@@ -137,9 +152,16 @@ class MultiHeadAttention(Layer):
         if mask is not None:
             scores = scores + (mask * -1e9)
         attn = _softmax(scores, axis=-1)  # (b,h,tq,tk)
+        attention_weights = attn
+        self._attention_dropout_mask = None
+        if self.training and self.dropout:
+            self._attention_dropout_mask = (
+                np.random.random(attn.shape) >= self.dropout
+            ).astype(attn.dtype) / (1.0 - self.dropout)
+            attention_weights = attn * self._attention_dropout_mask
 
         # Contexte
-        context = np.matmul(attn, Vh)  # (b,h,tq,depth)
+        context = np.matmul(attention_weights, Vh)  # (b,h,tq,depth)
         context = self._combine_heads(context)  # (b,tq,d_model)
 
         out = np.matmul(context, W_o) + b_o  # (b,tq,d_model)
@@ -149,10 +171,20 @@ class MultiHeadAttention(Layer):
             "query": query, "key": key, "value": value,
             "Q": Q, "K": K, "V": V,
             "Qh": Qh, "Kh": Kh, "Vh": Vh,
-            "attn": attn, "scores": scores, "mask": mask,
+            "attn": attention_weights, "softmax_attn": attn, "scores": scores,
+            "mask": mask, "dropout_mask": self._attention_dropout_mask,
             "context": context
         }
         return out
+
+    def get_config(self):
+        config = super().get_config()
+        config.update({
+            "d_model": self.d_model,
+            "num_heads": self.num_heads,
+            "dropout": self.dropout,
+        })
+        return config
 
     def backward(self, dout: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
@@ -164,7 +196,9 @@ class MultiHeadAttention(Layer):
         """
         cache = self._cache
         Qh, Kh, Vh = cache["Qh"], cache["Kh"], cache["Vh"]
-        attn, context = cache["attn"], cache["context"]
+        attn, softmax_attn, context = (
+            cache["attn"], cache["softmax_attn"], cache["context"]
+        )
         Q, K, V = cache["Q"], cache["K"], cache["V"]
         query, key, value = cache["query"], cache["key"], cache["value"]
 
@@ -187,8 +221,10 @@ class MultiHeadAttention(Layer):
         dVh = np.matmul(attn.transpose(0, 1, 3, 2), dcontext_h).transpose(0, 1, 3, 2)  # (b,h,tv,depth)
 
         # Softmax grad: attn * (dattn - sum(dattn*attn))
-        sum_dattn = np.sum(dattn * attn, axis=-1, keepdims=True)
-        dscores = attn * (dattn - sum_dattn)  # (b,h,tq,tk)
+        if cache["dropout_mask"] is not None:
+            dattn *= cache["dropout_mask"]
+        sum_dattn = np.sum(dattn * softmax_attn, axis=-1, keepdims=True)
+        dscores = softmax_attn * (dattn - sum_dattn)  # (b,h,tq,tk)
 
         dscores /= np.sqrt(self.depth)
 
@@ -228,6 +264,8 @@ class MultiHeadAttention(Layer):
         self.gradients["W_o"] = dW_o
         self.gradients["b_o"] = db_o
 
+        if self._single_input:
+            return dquery + dkey + dvalue
         return dquery, dkey, dvalue
 
 
@@ -237,4 +275,4 @@ class SelfAttention(MultiHeadAttention):
     """
 
     def forward(self, x: np.ndarray, mask: Optional[np.ndarray] = None) -> np.ndarray:
-        return super().forward(x, x, x, mask)
+        return super().forward(x, mask=mask)

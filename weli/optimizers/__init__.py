@@ -8,35 +8,9 @@ des modèles de deep learning.
 # Import de la classe de base
 from .base import Optimizer
 
-# Import de SGD
-try:
-    from .sgd import SGD
-except ImportError:
-    # Si SGD n'est pas encore implémenté, créer une classe placeholder
-    class SGD:
-        """Placeholder pour SGD optimizer"""
-        def __init__(self, lr=0.01):
-            self.lr = lr
-
-# Import de RMSprop
-try:
-    from .rmsprop import RMSprop
-except ImportError:
-    # Si RMSprop n'est pas encore implémenté, créer une classe placeholder
-    class RMSprop:
-        """Placeholder pour RMSprop optimizer"""
-        def __init__(self, lr=0.001):
-            self.lr = lr
-
-# Import de Adam
-try:
-    from .adam import Adam
-except ImportError:
-    # Si Adam n'est pas encore implémenté, créer une classe placeholder
-    class Adam:
-        """Placeholder pour Adam optimizer"""
-        def __init__(self, lr=0.001):
-            self.lr = lr
+from .sgd import SGD
+from .rmsprop import RMSprop
+from .adam import Adam
 
 # Liste des exports
 __all__ = [

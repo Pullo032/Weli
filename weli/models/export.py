@@ -1,85 +1,47 @@
 """
 Exportation de modèles vers d'autres formats.
 """
+import re
 import numpy as np
-from typing import Dict, Any
-import json
 
 def export_to_onnx(model: 'Model', filepath: str):
     """
     Exporte un modèle vers le format ONNX.
-    (Implémentation simplifiée - version réelle nécessite onnx)
+    Not implemented: raises NotImplementedError without creating a file.
     
     Args:
         model: Modèle à exporter
         filepath: Chemin du fichier
     """
-    print("ONNX export not fully implemented (requires onnx package)")
-    print(f"Would export model to {filepath}")
-    
-    # Structure simplifiée pour ONNX
-    onnx_structure = {
-        'model': model.name,
-        'opset_version': 13,
-        'graph': {
-            'nodes': [],
-            'inputs': [],
-            'outputs': []
-        }
-    }
-    
-    # Pour chaque couche, créer un nœud ONNX
-    for i, layer in enumerate(model.layers):
-        node = {
-            'name': layer.name,
-            'op_type': layer.__class__.__name__,
-            'inputs': [f'input_{i}'],
-            'outputs': [f'output_{i}'],
-            'attributes': layer.get_config()
-        }
-        onnx_structure['graph']['nodes'].append(node)
-    
-    # Sauvegarder en JSON (simulé)
-    with open(filepath + '.json', 'w') as f:
-        json.dump(onnx_structure, f, indent=2)
+    raise NotImplementedError(
+        "ONNX export is not implemented yet; no file was written."
+    )
 
 def export_to_tflite(model: 'Model', filepath: str):
     """
     Exporte un modèle vers TensorFlow Lite.
-    (Implémentation simplifiée)
+    Not implemented: raises NotImplementedError without creating a file.
     
     Args:
         model: Modèle à exporter
         filepath: Chemin du fichier
     """
-    print("TensorFlow Lite export not fully implemented")
-    print(f"Would export model to {filepath}")
-    
-    # Structure simplifiée
-    tflite_structure = {
-        'model_name': model.name,
-        'version': 1,
-        'subgraphs': [{
-            'tensors': [],
-            'operators': []
-        }]
-    }
-    
-    # Sauvegarder en JSON (simulé)
-    with open(filepath + '.json', 'w') as f:
-        json.dump(tflite_structure, f, indent=2)
+    raise NotImplementedError(
+        "TensorFlow Lite export is not implemented yet; no file was written."
+    )
 
 def export_to_coreml(model: 'Model', filepath: str):
     """
     Exporte un modèle vers CoreML.
-    (Implémentation simplifiée)
+    Not implemented: raises NotImplementedError without creating a file.
     
     Args:
         model: Modèle à exporter
         filepath: Chemin du fichier
     """
-    print("CoreML export not fully implemented")
-    print(f"Would export model to {filepath}")
+    raise NotImplementedError(
+        "CoreML export is not implemented yet; no file was written."
+    )
 
 def generate_c_code(model: 'Model', filepath: str):
     """
@@ -89,32 +51,110 @@ def generate_c_code(model: 'Model', filepath: str):
         model: Modèle
         filepath: Chemin du fichier
     """
-    params = model.get_parameters()
-    
-    with open(filepath, 'w') as f:
-        f.write(f"// Generated from Weli model: {model.name}\n")
-        f.write(f"// Total parameters: {sum(p.size for p in params.values())}\n\n")
-        
-        f.write("#include <stdint.h>\n#include <math.h>\n\n")
-        
-        # Déclaration des poids
-        for key, value in params.items():
-            if value.ndim == 1:
-                f.write(f"const float {key}[{value.size}] = {{\n    ")
-                f.write(", ".join(f"{v:.6f}f" for v in value.flatten()[:10]))
-                if value.size > 10:
-                    f.write(", ...")
-                f.write("\n};\n\n")
-            elif value.ndim == 2:
-                f.write(f"const float {key}[{value.shape[0]}][{value.shape[1]}] = {{\n")
-                for i in range(min(3, value.shape[0])):
-                    f.write(f"    {{ {', '.join(f'{v:.6f}f' for v in value[i, :3])} }}")
-                    if value.shape[0] > 3 or value.shape[1] > 3:
-                        f.write(", ...")
-                    f.write("\n")
-                f.write("};\n\n")
-    
-    print(f"C code generated to {filepath}")
+    from ..layers import Dense, ReLU, Sigmoid, Tanh, Softmax
+    from .sequential import Sequential
+
+    if not isinstance(model, Sequential):
+        raise NotImplementedError("C inference generation currently supports Sequential models only.")
+
+    layers = getattr(model, "layers", [])
+    if not layers or any(not isinstance(layer, (Dense, ReLU, Sigmoid, Tanh, Softmax))
+                         for layer in layers):
+        raise NotImplementedError(
+            "C inference generation currently supports Dense, ReLU, Sigmoid, "
+            "Tanh, and Softmax layers only."
+        )
+    if not any(isinstance(layer, Dense) for layer in layers):
+        raise ValueError("The model must contain at least one initialized Dense layer.")
+    if not isinstance(layers[0], Dense):
+        raise NotImplementedError(
+            "C inference generation requires the first layer to be Dense."
+        )
+
+    dense_layers = [layer for layer in layers if isinstance(layer, Dense)]
+    if any(layer.parameters.get("W") is None for layer in dense_layers):
+        raise ValueError("Initialize the model before generating C inference code.")
+    input_features = dense_layers[0].parameters["W"].shape[0]
+    for previous, current in zip(dense_layers, dense_layers[1:]):
+        if previous.units != current.parameters["W"].shape[0]:
+            raise ValueError("Dense layer dimensions are not sequentially compatible.")
+
+    def identifier(index, name):
+        return re.sub(r"\W|^(?=\d)", "_", f"weli_{index}_{name}")
+
+    with open(filepath, "w", encoding="utf-8") as output:
+        output.write("#include <math.h>\n#include <stddef.h>\n\n")
+        for index, layer in enumerate(dense_layers):
+            for key, value in layer.parameters.items():
+                if value is None:
+                    continue
+                name = identifier(index, key)
+                flat = ", ".join(f"{float(item):.9g}f" for item in value.ravel())
+                output.write(f"static const float {name}[{value.size}] = {{{flat}}};\n")
+            if layer.parameters.get("b") is None:
+                name = identifier(index, "b")
+                output.write(
+                    f"static const float {name}[{layer.units}] = "
+                    f"{{{', '.join('0.0f' for _ in range(layer.units))}}};\n"
+                )
+        output.write("\n")
+        output.write("void weli_predict(const float *input, float *output) {\n")
+        max_width = max(layer.units for layer in dense_layers)
+        output.write(f"    float buffer_a[{max_width}];\n")
+        output.write(f"    float buffer_b[{max_width}];\n")
+        current = "input"
+        current_width = input_features
+        dense_index = 0
+        for layer in layers:
+            if isinstance(layer, Dense):
+                weight = identifier(dense_index, "W")
+                bias = identifier(dense_index, "b")
+                target = "output" if layer is dense_layers[-1] else (
+                    "buffer_a" if dense_index % 2 == 0 else "buffer_b"
+                )
+                output.write(f"    for (size_t j = 0; j < {layer.units}; ++j) {{\n")
+                output.write(f"        float value = {bias}[j];\n")
+                output.write(f"        for (size_t i = 0; i < {current_width}; ++i) "
+                             f"value += {current}[i] * {weight}[i * {layer.units} + j];\n")
+                activation = layer.activation_name
+                if activation == "relu":
+                    output.write("        value = value > 0.0f ? value : 0.0f;\n")
+                elif activation == "sigmoid":
+                    output.write("        value = 1.0f / (1.0f + expf(-value));\n")
+                elif activation == "tanh":
+                    output.write("        value = tanhf(value);\n")
+                output.write(f"        {target}[j] = value;\n    }}\n")
+                if activation == "softmax":
+                    output.write(f"    float max_value = {target}[0];\n")
+                    output.write(f"    for (size_t j = 1; j < {layer.units}; ++j) "
+                                 f"if ({target}[j] > max_value) max_value = {target}[j];\n")
+                    output.write(f"    float total = 0.0f;\n"
+                                 f"    for (size_t j = 0; j < {layer.units}; ++j) "
+                                 f"{{ {target}[j] = expf({target}[j] - max_value); total += {target}[j]; }}\n"
+                                 f"    for (size_t j = 0; j < {layer.units}; ++j) "
+                                 f"{target}[j] /= total;\n")
+                current = target
+                current_width = layer.units
+                dense_index += 1
+            else:
+                output.write(f"    for (size_t j = 0; j < {current_width}; ++j) {{\n")
+                if isinstance(layer, ReLU):
+                    output.write(f"        {current}[j] = {current}[j] > 0.0f ? {current}[j] : 0.0f;\n")
+                elif isinstance(layer, Sigmoid):
+                    output.write(f"        {current}[j] = 1.0f / (1.0f + expf(-{current}[j]));\n")
+                elif isinstance(layer, Tanh):
+                    output.write(f"        {current}[j] = tanhf({current}[j]);\n")
+                output.write("    }\n")
+                if isinstance(layer, Softmax):
+                    output.write(f"    float max_value = {current}[0];\n")
+                    output.write(f"    for (size_t j = 1; j < {current_width}; ++j) "
+                                 f"if ({current}[j] > max_value) max_value = {current}[j];\n")
+                    output.write(f"    float total = 0.0f;\n"
+                                 f"    for (size_t j = 0; j < {current_width}; ++j) "
+                                 f"{{ {current}[j] = expf({current}[j] - max_value); total += {current}[j]; }}\n"
+                                 f"    for (size_t j = 0; j < {current_width}; ++j) "
+                                 f"{current}[j] /= total;\n")
+        output.write("}\n")
 
 def export_parameters_csv(model: 'Model', directory: str):
     """
@@ -143,5 +183,9 @@ def export_parameters_csv(model: 'Model', directory: str):
             elif value.ndim == 2:
                 for row in value:
                     writer.writerow(row)
+            else:
+                writer.writerow(['indices', 'value'])
+                for indices in np.ndindex(value.shape):
+                    writer.writerow([','.join(map(str, indices)), value[indices]])
         
         print(f"Exported {key} to {filename}")
