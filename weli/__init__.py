@@ -4,7 +4,7 @@ Weli - Framework de Deep Learning en Python
 Un framework simple et intuitif pour créer et entraîner des réseaux de neurones.
 """
 
-__version__ = '1.0.0'
+__version__ = '1.0.2'
 __author__ = 'Weli Team'
 
 # Imports principaux

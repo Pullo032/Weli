@@ -17,7 +17,7 @@ def read_requirements():
 
 setup(
     name='weli-ml',
-    version='1.0.1',
+    version='1.0.2',
     description='Framework de Deep Learning en Python',
     long_description=(ROOT / 'README.md').read_text(encoding='utf-8'),
     long_description_content_type='text/markdown',

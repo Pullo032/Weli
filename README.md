@@ -1,5 +1,9 @@
 # Weli
 
+<p align="center">
+  <img src="https://raw.githubusercontent.com/Pullo032/Weli/master/assets/logo-weli.png" alt="Logo Weli" width="120">
+</p>
+
 **Weli** est un framework de deep learning en Python, construit autour de NumPy. Il propose une API pédagogique pour assembler, entraîner, évaluer et sauvegarder des réseaux de neurones.
 
 > Weli est un projet éducatif et léger. Il ne remplace pas les frameworks de production comme PyTorch ou TensorFlow.
