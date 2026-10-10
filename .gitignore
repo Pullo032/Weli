@@ -101,5 +101,8 @@ examples/regression.py
 pyproject.toml
 testes/test_model_modules.py
 testes/test_models.py
-training/
-
+training/*
+!training/weli_train.ipynb
+!training/text-to-image.ipynb
+!training/text-to-video.ipynb
+!training/cnn.ipynb

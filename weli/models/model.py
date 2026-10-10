@@ -1,6 +1,18 @@
 import numpy as np
 from typing import Dict, List, Tuple, Optional, Any
 
+
+def _batch_accuracy(predictions: np.ndarray, y_batch: np.ndarray) -> float:
+    if predictions.ndim == 2 and predictions.shape[1] > 1:
+        if y_batch.ndim == 2 and y_batch.shape[1] > 1:
+            true_classes = np.argmax(y_batch, axis=1)
+        else:
+            true_classes = y_batch.reshape(-1).astype(int)
+        return np.mean(np.argmax(predictions, axis=1) == true_classes)
+    if y_batch.ndim > 1 and y_batch.shape[1] == 1:
+        return np.mean((predictions > 0.5).astype(int) == y_batch)
+    return 0.0
+
 class Model:
     """
     Classe de base pour tous les modèles de Weli.
@@ -149,19 +161,8 @@ class Model:
         loss = loss_fn.forward(predictions, y_batch)
         
         # Calcul de l'accuracy (si classification)
-        if len(y_batch.shape) > 1 and y_batch.shape[1] > 1:
-            # Classification multi-classes
-            pred_classes = np.argmax(predictions, axis=1)
-            true_classes = np.argmax(y_batch, axis=1)
-            accuracy = np.mean(pred_classes == true_classes)
-        elif len(y_batch.shape) > 1 and y_batch.shape[1] == 1:
-            # Régression ou classification binaire
-            pred_binary = (predictions > 0.5).astype(int)
-            accuracy = np.mean(pred_binary == y_batch)
-        else:
-            # Régression simple
-            accuracy = 0.0
-        
+        accuracy = _batch_accuracy(predictions, y_batch)
+
         # Backward pass
         dout = loss_fn.backward()
         self.backward(dout)
@@ -194,16 +195,8 @@ class Model:
         loss = loss_fn.forward(predictions, y_batch)
         
         # Calcul de l'accuracy
-        if len(y_batch.shape) > 1 and y_batch.shape[1] > 1:
-            pred_classes = np.argmax(predictions, axis=1)
-            true_classes = np.argmax(y_batch, axis=1)
-            accuracy = np.mean(pred_classes == true_classes)
-        elif len(y_batch.shape) > 1 and y_batch.shape[1] == 1:
-            pred_binary = (predictions > 0.5).astype(int)
-            accuracy = np.mean(pred_binary == y_batch)
-        else:
-            accuracy = 0.0
-        
+        accuracy = _batch_accuracy(predictions, y_batch)
+
         return loss, accuracy
     
     def fit(self, 

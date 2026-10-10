@@ -254,12 +254,10 @@ def load_model(filepath: str,
             # Charger depuis format binaire
             model = _load_from_binary(filepath, custom_objects)
         
-        # Tenter de recompiler si demandé
-        if compile and hasattr(model, 'compile'):
+        # Tenter de recompiler si demandé (sans réinitialiser les poids chargés)
+        if compile and hasattr(model, 'compile') and model.initialized:
             try:
-                input_shape = getattr(model, '_input_shape', None)
-                if input_shape:
-                    model.compile(input_shape=input_shape)
+                model.compile()
             except Exception as e:
                 warnings.warn(f"Impossible de recompiler le modèle: {e}")
         
@@ -297,7 +295,7 @@ def _load_from_json(filepath: str, custom_objects: Optional[Dict[str, Any]] = No
     
     # Désérialiser le modèle
     model = registry.deserialize_model(model_data['model_config'])
-    
+
     # Charger les paramètres si disponibles
     if 'parameters' in model_data:
         # Convertir les listes de JSON en arrays NumPy
@@ -357,7 +355,7 @@ def _load_from_binary(filepath: str, custom_objects: Optional[Dict[str, Any]] = 
     
     # Désérialiser le modèle
     model = registry.deserialize_model(model_data['model_config'])
-    
+
     # Charger les paramètres
     if 'parameters' in model_data:
         model.set_parameters(model_data['parameters'])

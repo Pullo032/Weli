@@ -26,13 +26,22 @@
 - Fonctions de perte pour la régression, la classification et l'apprentissage par similarité.
 - Optimiseurs SGD, RMSprop et Adam.
 - Entraînement par mini-batch, validation, évaluation et prédiction avec des tableaux NumPy.
-- Modèles de référence préconstruits pour la vision, le NLP et les GAN.
+- Modèles de référence préconstruits pour la vision, le NLP, les GAN et la génération texte-image ou texte-vidéo.
+- Générateurs pédagogiques conditionnés par des embeddings textuels pour produire des images ou des séquences vidéo.
 - Outils de visualisation et de sauvegarde.
 - Génération de code C pour un sous-ensemble de modèles séquentiels.
+- Outils `weli.core` pour sélectionner les devices, mesurer la mémoire et profiler les opérations.
+- Diagnostics numériques, vérification par différences finies des gradients et inspection des activations.
+
+Le backend de calcul de Weli reste NumPy. Les transferts CUDA de `weli.core` sont
+disponibles en option si CuPy et un périphérique CUDA compatibles sont installés.
+Par exemple, `from weli.core import Profiler, check_numerics, get_device` permet
+de profiler des opérations, de vérifier des sorties et de consulter le device
+sélectionné. En l'absence de CUDA, la sélection automatique utilise le CPU.
 
 ## Installation
 
-Weli requiert Python 3.7 ou une version ultérieure. Après la publication de Weli sur PyPI, installez-le avec ses dépendances d'exécution :
+Weli requiert Python 3.7 ou une version ultérieure. Installez-le depuis PyPI avec ses dépendances d'exécution :
 
 ```bash
 python -m pip install weli-ml
@@ -174,6 +183,8 @@ from weli.models import (
     generator_mlp,
     discriminator_mlp,
     gan_mlp,
+    text_to_image_mlp,
+    text_to_video_mlp,
 )
 ```
 
@@ -201,6 +212,7 @@ La méthode `model.save(path)` est également disponible. La sauvegarde complèt
 - [Référence de l'API](README/api.md) : méthodes des modèles, couches, pertes,
   optimiseurs et formats.
 - [Guide des modèles](weli/models/README.md) : API séquentielle et fonctionnelle, sérialisation et exports.
+- [Outils de base](README/core.md) : devices, profilage, mémoire et diagnostics (`weli.core`).
 - [Guide des exemples](README/exemples.md), [exemple de régression](examples/regression.py)
   et [instructions d'exécution](examples/README.md).
 - [Application de documentation](Frontend/weli-frontend/) : site de documentation Weli.
@@ -235,6 +247,7 @@ Weli/
 - `generate_c_code()` ne prend actuellement en charge que les modèles `Sequential` constitués de couches `Dense` et d'activations ReLU, Sigmoid, Tanh ou Softmax.
 - Les exports ONNX, TensorFlow Lite et CoreML ne sont pas implémentés ; leurs fonctions lèvent `NotImplementedError`.
 - Les modèles préconstruits sont des architectures de référence, et non un catalogue complet de modèles pré-entraînés.
+- `weli.backend` (hors NumPy), `weli.performance` et `weli.utils` sont des emplacements réservés sans implémentation. Les optimiseurs Adadelta, Adagrad, Adamax, AdamW, FTRL et Nadam ne sont pas implémentés.
 
 ## Tests
 

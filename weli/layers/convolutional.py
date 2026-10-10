@@ -333,7 +333,7 @@ class Flatten(Layer):
         return self.output
     
     def backward(self, dout: np.ndarray) -> np.ndarray:
-        return dout.reshape(self.input_shape)
+        return dout.reshape(self.input.shape)
 
     def get_config(self) -> Dict[str, Any]:
         return super().get_config()

@@ -14,6 +14,7 @@ from . import losses
 from . import optimizers
 from . import utils
 from . import backend
+from . import core
 
 # Exports principaux pour faciliter l'utilisation
 from .models import (
@@ -21,6 +22,7 @@ from .models import (
     save_model, load_model,
     resnet18, text_classifier_gru, text_classifier_lstm,
     generator_mlp, discriminator_mlp, gan_mlp,
+    text_to_image_mlp, text_to_video_mlp,
 )
 from .layers import (
     Layer, Dense,
@@ -52,6 +54,7 @@ __all__ = [
     'optimizers',
     'utils',
     'backend',
+    'core',
     
     # Modèles
     'Sequential',
@@ -65,6 +68,8 @@ __all__ = [
     'generator_mlp',
     'discriminator_mlp',
     'gan_mlp',
+    'text_to_image_mlp',
+    'text_to_video_mlp',
     
     # Couches
     'Layer',

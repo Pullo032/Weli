@@ -59,6 +59,8 @@ from .prebuilt import (
     generator_mlp,
     discriminator_mlp,
     gan_mlp,
+    text_to_image_mlp,
+    text_to_video_mlp,
 )
 
 __all__ = [
@@ -124,6 +126,8 @@ __all__ = [
     'generator_mlp',
     'discriminator_mlp',
     'gan_mlp',
+    'text_to_image_mlp',
+    'text_to_video_mlp',
 ]
 
 # Ajouter les wrappers fonctionnels si disponibles

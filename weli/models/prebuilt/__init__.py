@@ -10,6 +10,7 @@ personnalisées.
 from .vision_models import resnet18
 from .nlp_models import text_classifier_gru, text_classifier_lstm
 from .gan_models import generator_mlp, discriminator_mlp, gan_mlp
+from .text_generation_models import text_to_image_mlp, text_to_video_mlp
 
 PREBUILT_MODELS = {
     "vision": {
@@ -24,6 +25,10 @@ PREBUILT_MODELS = {
         "discriminator_mlp": discriminator_mlp,
         "gan_mlp": gan_mlp,
     },
+    "text_generation": {
+        "text_to_image_mlp": text_to_image_mlp,
+        "text_to_video_mlp": text_to_video_mlp,
+    },
 }
 
 __all__ = [
@@ -34,4 +39,6 @@ __all__ = [
     "generator_mlp",
     "discriminator_mlp",
     "gan_mlp",
+    "text_to_image_mlp",
+    "text_to_video_mlp",
 ]

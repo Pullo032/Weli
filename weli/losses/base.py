@@ -50,7 +50,8 @@ class Loss:
         self.y_true = None
         self.loss_value = None
         self.batch_size = None
-    
+        self._reduction_count = None
+
     def __call__(self, y_pred: np.ndarray, y_true: np.ndarray) -> Union[float, np.ndarray]:
         """
         Calcule la perte (alias pour forward).
@@ -113,6 +114,7 @@ class Loss:
             2.0  # si reduction='mean'
         """
         if self.reduction == 'mean':
+            self._reduction_count = loss_array.size
             return np.mean(loss_array)
         elif self.reduction == 'sum':
             return np.sum(loss_array)
@@ -195,8 +197,8 @@ class Loss:
         Returns:
             Gradient ajusté selon la réduction
         """
-        if self.reduction == 'mean' and self.batch_size is not None:
-            return gradient / self.batch_size
+        if self.reduction == 'mean' and self._reduction_count is not None:
+            return gradient / self._reduction_count
         return gradient
     
     def compute(self, y_pred: np.ndarray, y_true: np.ndarray) -> Dict[str, Any]:
@@ -236,6 +238,7 @@ class Loss:
         self.y_true = None
         self.loss_value = None
         self.batch_size = None
+        self._reduction_count = None
     
     def get_config(self) -> Dict[str, Any]:
         """
@@ -374,8 +377,25 @@ class LossFunctionRegistry:
             'mse': ('regression', 'MSE'),
             'mae': ('regression', 'MAE'),
             'huber': ('regression', 'HuberLoss'),
+            'msle': ('regression', 'MSLE'),
             'crossentropy': ('classification', 'CrossEntropy'),
+            'categoricalcrossentropy': ('classification', 'CategoricalCrossEntropy'),
+            'sparsecategoricalcrossentropy': ('classification', 'SparseCategoricalCrossEntropy'),
             'binarycrossentropy': ('classification', 'BinaryCrossEntropy'),
+            'hinge': ('classification', 'HingeLoss'),
+            'squaredhinge': ('classification', 'SquaredHingeLoss'),
+            'kldivergence': ('advanced', 'KLDivergence'),
+            'poisson': ('advanced', 'PoissonLoss'),
+            'poissonloss': ('advanced', 'PoissonLoss'),
+            'cosinesimilarityloss': ('advanced', 'CosineSimilarityLoss'),
+            'logcoshloss': ('advanced', 'LogCoshLoss'),
+            'dice': ('advanced', 'DiceLoss'),
+            'diceloss': ('advanced', 'DiceLoss'),
+            'focal': ('focal_loss', 'FocalLoss'),
+            'focalloss': ('focal_loss', 'FocalLoss'),
+            'tripletloss': ('triplet_loss', 'TripletLoss'),
+            'contrastiveloss': ('contrastive_loss', 'ContrastiveLoss'),
+            'wassersteinloss': ('wasserstein_loss', 'WassersteinLoss'),
         }
         
         name_lower = name.lower()
@@ -512,9 +532,6 @@ class CombinedLoss(Loss):
                 total_gradient = weighted_gradient
             else:
                 total_gradient += weighted_gradient
-        
-        # Appliquer la réduction
-        total_gradient = self._apply_reduction_to_gradient(total_gradient)
         
         return total_gradient
     

@@ -60,9 +60,7 @@ class Softmax(Activation):
         return self.output
     
     def backward(self, dout: np.ndarray) -> np.ndarray:
-        # Cette implémentation suppose que dout vient d'une CrossEntropyLoss
-        # Pour une implémentation générale, c'est plus complexe
-        return dout  # Simplifié pour l'instant
+        return self.output * (dout - np.sum(dout * self.output, axis=-1, keepdims=True))
 
 class LeakyReLU(Activation):
     """Leaky ReLU: f(x) = x si x > 0, sinon αx"""
