@@ -18,6 +18,7 @@ from .activation import (
 from .dropout import Dropout
 from .convolutional import Conv2D, MaxPool2D, Flatten
 from .batchnorm import BatchNorm1D, BatchNorm2D
+from .normalization import LayerNorm, GroupNorm, InstanceNorm, WeightNorm
 from .rnn import SimpleRNN, LSTM, GRU
 from .attention import MultiHeadAttention, SelfAttention
 from .merge import Add, Multiply, Average, Maximum, Concatenate, Dot, Subtract
@@ -30,6 +31,7 @@ __all__ = [
     'Dropout',
     'Conv2D', 'MaxPool2D', 'Flatten',
     'BatchNorm1D', 'BatchNorm2D',
+    'LayerNorm', 'GroupNorm', 'InstanceNorm', 'WeightNorm',
     'SimpleRNN', 'LSTM', 'GRU',
     'MultiHeadAttention', 'SelfAttention',
     'Add', 'Multiply', 'Average', 'Maximum', 'Concatenate', 'Dot', 'Subtract'

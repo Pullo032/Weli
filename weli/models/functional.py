@@ -140,6 +140,13 @@ Flatten = layer_wrapper(lambda *args, **kwargs: __import__('weli.layers', fromli
 Dropout = layer_wrapper(lambda *args, **kwargs: __import__('weli.layers', fromlist=['']).Dropout(*args, **kwargs))
 BatchNorm2D = layer_wrapper(lambda *args, **kwargs: __import__('weli.layers', fromlist=['']).BatchNorm2D(*args, **kwargs))
 ReLU = layer_wrapper(lambda *args, **kwargs: __import__('weli.layers', fromlist=['']).ReLU(*args, **kwargs))
+LayerNorm = layer_wrapper(lambda *args, **kwargs: __import__('weli.layers', fromlist=['']).LayerNorm(*args, **kwargs))
+GroupNorm = layer_wrapper(lambda *args, **kwargs: __import__('weli.layers', fromlist=['']).GroupNorm(*args, **kwargs))
+InstanceNorm = layer_wrapper(lambda *args, **kwargs: __import__('weli.layers', fromlist=['']).InstanceNorm(*args, **kwargs))
+
+def WeightNorm(layer, name: Optional[str] = None) -> LayerNode:
+    inner = layer.layer if isinstance(layer, LayerNode) else layer
+    return LayerNode(__import__('weli.layers', fromlist=['']).WeightNorm(inner, name=name))
 
 # Opérations fonctionnelles
 def add(inputs: List[LayerNode], name: Optional[str] = None) -> LayerNode:

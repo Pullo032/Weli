@@ -12,7 +12,10 @@ from .functional import (
 
 # Import conditionnel des wrappers
 try:
-    from .functional import Dense, Conv2D, MaxPool2D, Flatten, Dropout, BatchNorm2D
+    from .functional import (
+        Dense, Conv2D, MaxPool2D, Flatten, Dropout, BatchNorm2D,
+        LayerNorm, GroupNorm, InstanceNorm, WeightNorm,
+    )
     _FUNCTIONAL_WRAPPERS_AVAILABLE = True
 except ImportError:
     _FUNCTIONAL_WRAPPERS_AVAILABLE = False
@@ -132,7 +135,8 @@ __all__ = [
 
 # Ajouter les wrappers fonctionnels si disponibles
 if _FUNCTIONAL_WRAPPERS_AVAILABLE:
-    __all__.extend(['Dense', 'Conv2D', 'MaxPool2D', 'Flatten', 'Dropout', 'BatchNorm2D'])
+    __all__.extend(['Dense', 'Conv2D', 'MaxPool2D', 'Flatten', 'Dropout', 'BatchNorm2D',
+                    'LayerNorm', 'GroupNorm', 'InstanceNorm', 'WeightNorm'])
 
 # Version
 __version__ = '1.0.0'

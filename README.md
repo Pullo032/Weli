@@ -150,6 +150,7 @@ from weli.layers import (
     Dense, Conv2D, MaxPool2D, Flatten,
     ReLU, Sigmoid, Tanh, Softmax,
     Dropout, BatchNorm1D, BatchNorm2D,
+    LayerNorm, GroupNorm, InstanceNorm, WeightNorm,
     SimpleRNN, LSTM, GRU,
     MultiHeadAttention, SelfAttention,
 )

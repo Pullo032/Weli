@@ -29,6 +29,7 @@ from .layers import (
     ReLU, Sigmoid, Tanh, Softmax,
     Conv2D, MaxPool2D, Flatten,
     Dropout, BatchNorm1D, BatchNorm2D,
+    LayerNorm, GroupNorm, InstanceNorm, WeightNorm,
     SimpleRNN, LSTM, GRU
 )
 from .losses import (
@@ -78,8 +79,9 @@ __all__ = [
     'Conv2D', 'MaxPool2D', 'Flatten',
     'Dropout',
     'BatchNorm1D', 'BatchNorm2D',
+    'LayerNorm', 'GroupNorm', 'InstanceNorm', 'WeightNorm',
     'SimpleRNN', 'LSTM', 'GRU',
-    
+
     # Losses
     'Loss',
     'MSE', 'MAE', 'HuberLoss', 'MSLE',

@@ -212,14 +212,16 @@ def register_default_classes():
     
     from ..layers import (
         Dense, Conv2D, MaxPool2D, Flatten, Dropout,
-        BatchNorm1D, BatchNorm2D, ReLU, Sigmoid, Tanh,
+        BatchNorm1D, BatchNorm2D, LayerNorm, GroupNorm, InstanceNorm, WeightNorm,
+        ReLU, Sigmoid, Tanh,
         Softmax, LeakyReLU, ELU, SimpleRNN, LSTM, GRU,
         MultiHeadAttention, SelfAttention
     )
 
     for layer_class in (
         Dense, Conv2D, MaxPool2D, Flatten, Dropout,
-        BatchNorm1D, BatchNorm2D, ReLU, Sigmoid, Tanh,
+        BatchNorm1D, BatchNorm2D, LayerNorm, GroupNorm, InstanceNorm, WeightNorm,
+        ReLU, Sigmoid, Tanh,
         Softmax, LeakyReLU, ELU, SimpleRNN, LSTM, GRU,
         MultiHeadAttention, SelfAttention
     ):
