@@ -17,14 +17,14 @@ def read_requirements():
 
 setup(
     name='weli-ml',
-    version='1.0.2',
+    version='1.0.3',
     description='Framework de Deep Learning en Python',
     long_description=(ROOT / 'README.md').read_text(encoding='utf-8'),
     long_description_content_type='text/markdown',
     author='Pullo Ba',
     author_email='pulloba192@gmail.com',
     url='https://github.com/Pullo032/Weli',
-    packages=find_packages(include=['weli', 'weli.*']),
+    packages=find_packages(include=['weli', 'weli.*', 'matlotlibs', 'matlotlibs.*']),
     install_requires=read_requirements(),
     license='MIT',
     extras_require={
