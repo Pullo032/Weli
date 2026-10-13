@@ -2,16 +2,40 @@ import numpy as np
 from typing import Dict, List, Tuple, Optional, Any
 
 
+def _r2_score(pred: np.ndarray, true: np.ndarray) -> float:
+    ss_res = np.sum((true - pred) ** 2, axis=0)
+    ss_tot = np.sum((true - true.mean(axis=0)) ** 2, axis=0)
+    return float(np.mean(1.0 - ss_res / np.maximum(ss_tot, 1e-12)))
+
+
 def _batch_accuracy(predictions: np.ndarray, y_batch: np.ndarray) -> float:
-    if predictions.ndim == 2 and predictions.shape[1] > 1:
-        if y_batch.ndim == 2 and y_batch.shape[1] > 1:
-            true_classes = np.argmax(y_batch, axis=1)
+    n = predictions.shape[0]
+    pred = predictions.reshape(n, -1)
+    true = y_batch.reshape(n, -1)
+
+    if pred.shape[1] > 1:
+        if true.shape == pred.shape and np.isin(true, (0, 1)).all() and np.all(true.sum(axis=1) == 1):
+            labels = np.argmax(true, axis=1)
+        elif true.shape[1] == 1 and np.all(true == np.round(true)) and 0 <= true.min() and true.max() < pred.shape[1]:
+            labels = true[:, 0].astype(int)
         else:
-            true_classes = y_batch.reshape(-1).astype(int)
-        return np.mean(np.argmax(predictions, axis=1) == true_classes)
-    if y_batch.ndim > 1 and y_batch.shape[1] == 1:
-        return np.mean((predictions > 0.5).astype(int) == y_batch)
-    return 0.0
+            return _r2_score(pred, true)
+        return float(np.mean(np.argmax(pred, axis=1) == labels))
+
+    if true.shape[1] == 1:
+        p, t = pred[:, 0], true[:, 0]
+        if np.isin(t, (0, 1)).all():
+            return float(np.mean((p > 0.5) == (t == 1)))
+        if np.isin(t, (-1, 1)).all():
+            return float(np.mean((p > 0) == (t > 0)))
+
+    return _r2_score(pred, true)
+
+
+def _align_targets(predictions: np.ndarray, y: np.ndarray) -> np.ndarray:
+    if y.ndim == 1 and predictions.ndim == 2 and predictions.shape[1] == 1:
+        return y[:, None]
+    return y
 
 class Model:
     """
@@ -156,6 +180,7 @@ class Model:
         """
         # Forward pass
         predictions = self.forward(x_batch, training=True)
+        y_batch = _align_targets(predictions, y_batch)
         
         # Calcul de la perte
         loss = loss_fn.forward(predictions, y_batch)
@@ -190,6 +215,7 @@ class Model:
         """
         # Forward pass (mode inference)
         predictions = self.predict(x_batch)
+        y_batch = _align_targets(predictions, y_batch)
         
         # Calcul de la perte
         loss = loss_fn.forward(predictions, y_batch)

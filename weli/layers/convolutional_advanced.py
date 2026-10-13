@@ -179,13 +179,13 @@ class Conv1D(Layer):
             dout = self.activation.backward(dout)
         
         # Gradient par rapport aux biais
-        self.gradients['b'] = np.sum(dout, axis=(0, 1), keepdims=True) / batch_size
+        self.gradients['b'] = np.sum(dout, axis=(0, 1), keepdims=True)
         
         # Reshape dout
         dout_reshaped = dout.reshape(batch_size * self.output_shape[1], self.filters)
         
         # Gradient par rapport aux poids
-        self.gradients['W'] = (self.cols.T @ dout_reshaped).reshape(self.parameters['W'].shape) / batch_size
+        self.gradients['W'] = (self.cols.T @ dout_reshaped).reshape(self.parameters['W'].shape)
         
         # Gradient par rapport à l'input
         W_reshaped = self.parameters['W'].reshape(-1, self.filters)
@@ -407,7 +407,7 @@ class Conv3D(Layer):
             dout = self.activation.backward(dout)
         
         # Gradient par rapport aux biais
-        self.gradients['b'] = np.sum(dout, axis=(0, 1, 2, 3), keepdims=True) / batch_size
+        self.gradients['b'] = np.sum(dout, axis=(0, 1, 2, 3), keepdims=True)
         
         # Reshape dout
         dout_reshaped = dout.reshape(batch_size * self.output_shape[1] * 
@@ -415,7 +415,7 @@ class Conv3D(Layer):
                                      self.filters)
         
         # Gradient par rapport aux poids
-        self.gradients['W'] = (self.cols.T @ dout_reshaped).reshape(self.parameters['W'].shape) / batch_size
+        self.gradients['W'] = (self.cols.T @ dout_reshaped).reshape(self.parameters['W'].shape)
         
         # Gradient par rapport à l'input
         W_reshaped = self.parameters['W'].reshape(-1, self.filters)
@@ -629,7 +629,7 @@ class DepthwiseConv2D(Layer):
             dout = self.activation.backward(dout)
         
         # Gradient par rapport aux biais
-        self.gradients['b'] = np.sum(dout, axis=(0, 1, 2), keepdims=True) / batch_size
+        self.gradients['b'] = np.sum(dout, axis=(0, 1, 2), keepdims=True)
         
         # Reshape dout pour séparer les canaux
         dout_reshaped = dout.reshape(batch_size, self.output_shape[1], 
@@ -650,7 +650,7 @@ class DepthwiseConv2D(Layer):
             # Gradient par rapport aux poids
             dW[:, :, c, :] = (cols_c.T @ dout_c).reshape(self.kernel_size[0], 
                                                           self.kernel_size[1], 
-                                                          self.depth_multiplier) / batch_size
+                                                          self.depth_multiplier)
             
             # Gradient par rapport à l'input
             dcols[:, c, :] = dout_c @ W_c.T
@@ -885,7 +885,7 @@ class SeparableConv2D(Layer):
             dout = self.activation.backward(dout)
         
         # Gradient par rapport aux biais
-        self.gradients['b'] = np.sum(dout, axis=(0, 1, 2), keepdims=True) / batch_size
+        self.gradients['b'] = np.sum(dout, axis=(0, 1, 2), keepdims=True)
         
         # Reshape dout
         out_h, out_w = self.output_shape[1], self.output_shape[2]
@@ -895,7 +895,7 @@ class SeparableConv2D(Layer):
         # Gradient par rapport aux poids pointwise
         pointwise_input = self.depthwise_output.reshape(batch_size * out_h * out_w, -1)
         self.gradients['W_pointwise'] = (pointwise_input.T @ dout_reshaped).reshape(
-            self.parameters['W_pointwise'].shape) / batch_size
+            self.parameters['W_pointwise'].shape)
         
         # Gradient par rapport à la sortie depthwise
         W_pointwise_reshaped = self.parameters['W_pointwise'].reshape(-1, self.filters)
@@ -916,7 +916,7 @@ class SeparableConv2D(Layer):
             
             # Gradient par rapport aux poids depthwise
             dW_depthwise[:, :, c, :] = (cols_c.T @ dout_c).reshape(
-                self.kernel_size[0], self.kernel_size[1], self.depth_multiplier) / batch_size
+                self.kernel_size[0], self.kernel_size[1], self.depth_multiplier)
             
             # Gradient par rapport à l'input
             dcols[:, c, :] = dout_c @ W_c.T
@@ -1084,7 +1084,7 @@ class TransposeConv2D(Layer):
             dout = self.activation.backward(dout)
         
         # Gradient par rapport aux biais
-        self.gradients['b'] = np.sum(dout, axis=(0, 1, 2), keepdims=True) / batch_size
+        self.gradients['b'] = np.sum(dout, axis=(0, 1, 2), keepdims=True)
         
         # Gradient par rapport aux poids et input
         in_h, in_w = self.input.shape[1], self.input.shape[2]
@@ -1114,7 +1114,7 @@ class TransposeConv2D(Layer):
                             self.input[:, i:i+1, j:j+1, :, np.newaxis, np.newaxis] * 
                             dout_window[:, :, :, f:f+1, np.newaxis],
                             axis=0
-                        ) / batch_size
+                        )
                     
                     # Gradient par rapport à l'input
                     # dx[:, i, j, c] += sum over (h, w, filters)
@@ -1341,13 +1341,13 @@ class DilatedConv2D(Layer):
             dout = self.activation.backward(dout)
         
         # Gradient par rapport aux biais
-        self.gradients['b'] = np.sum(dout, axis=(0, 1, 2), keepdims=True) / batch_size
+        self.gradients['b'] = np.sum(dout, axis=(0, 1, 2), keepdims=True)
         
         # Reshape dout
         dout_reshaped = dout.reshape(batch_size * self.output_shape[1] * self.output_shape[2], self.filters)
         
         # Gradient par rapport aux poids
-        self.gradients['W'] = (self.cols.T @ dout_reshaped).reshape(self.parameters['W'].shape) / batch_size
+        self.gradients['W'] = (self.cols.T @ dout_reshaped).reshape(self.parameters['W'].shape)
         
         # Gradient par rapport à l'input
         W_reshaped = self.parameters['W'].reshape(-1, self.filters)

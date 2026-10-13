@@ -63,8 +63,6 @@ def check_gradients(model_or_layer, inputs, grad_output=None, epsilon=1e-5,
     if not layers:
         raise ValueError("At least one layer with parameters is required")
 
-    batch_size = inputs[0].shape[0] if isinstance(inputs, list) else inputs.shape[0]
-
     def forward():
         if is_model:
             return model_or_layer.forward(inputs, training=False)
@@ -108,10 +106,10 @@ def check_gradients(model_or_layer, inputs, grad_output=None, epsilon=1e-5,
                 try:
                     parameter[index] = original + epsilon
                     plus = forward()
-                    plus_value = float(np.sum(plus * grad_output) / batch_size)
+                    plus_value = float(np.sum(plus * grad_output))
                     parameter[index] = original - epsilon
                     minus = forward()
-                    minus_value = float(np.sum(minus * grad_output) / batch_size)
+                    minus_value = float(np.sum(minus * grad_output))
                 finally:
                     parameter[index] = original
                 numerical[index] = (plus_value - minus_value) / (2.0 * epsilon)
