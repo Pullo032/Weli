@@ -85,8 +85,8 @@ class BatchNorm1D(Layer):
         batch_size = self.input.shape[0]
         
         # Gradient par rapport à gamma et beta
-        self.gradients['gamma'] = np.sum(dout * self.x_norm, axis=0, keepdims=True) / batch_size
-        self.gradients['beta'] = np.sum(dout, axis=0, keepdims=True) / batch_size
+        self.gradients['gamma'] = np.sum(dout * self.x_norm, axis=0, keepdims=True)
+        self.gradients['beta'] = np.sum(dout, axis=0, keepdims=True)
         
         # Gradient par rapport à x_norm
         dx_norm = dout * self.parameters['gamma']

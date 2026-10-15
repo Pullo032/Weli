@@ -187,16 +187,19 @@ class SimpleRNN(Layer):
                     dh_total = dh_next
             
             # Backward à travers l'activation
-            da = self.activation.backward(dh_total)
+            if self.activation_name == 'tanh':
+                da = dh_total * (1.0 - h_t ** 2)
+            else:
+                da = dh_total * h_t * (1.0 - h_t)
             
             # Gradient par rapport aux poids W_x
-            dW_x += x_t.T @ da / batch_size
+            dW_x += x_t.T @ da
             
             # Gradient par rapport aux poids W_h
-            dW_h += h_prev.T @ da / batch_size
+            dW_h += h_prev.T @ da
             
             # Gradient par rapport au biais
-            db += np.sum(da, axis=0, keepdims=True) / batch_size
+            db += np.sum(da, axis=0, keepdims=True)
             
             # Gradient par rapport à l'input x_t
             dx[:, t, :] = da @ self.parameters['W_x'].T
@@ -440,46 +443,46 @@ class LSTM(Layer):
             # Gradients pour l'output gate
             tanh_c_t = np.tanh(c_t)
             do = dh_total * tanh_c_t
-            do_raw = self.sigmoid.backward(do)
-            
+            do_raw = do * o_t * (1 - o_t)
+
             # Gradients pour le cell state
             dc = dh_total * o_t * (1 - tanh_c_t ** 2) + dc_next
-            
+
             # Gradients pour le forget gate
             df = dc * c_prev
-            df_raw = self.sigmoid.backward(df)
-            
+            df_raw = df * f_t * (1 - f_t)
+
             # Gradients pour l'input gate
             di = dc * c_tilde_t
-            di_raw = self.sigmoid.backward(di)
-            
+            di_raw = di * i_t * (1 - i_t)
+
             # Gradients pour le cell candidate
             dc_tilde = dc * i_t
-            dc_tilde_raw = self.tanh.backward(dc_tilde)
+            dc_tilde_raw = dc_tilde * (1 - c_tilde_t ** 2)
             
             # Mettre à jour dc_next pour le pas précédent
             dc_next = dc * f_t
             
             # Calculer les gradients pour les poids
             # Forget gate
-            gradients['W_f'] += x_t.T @ df_raw / batch_size
-            gradients['U_f'] += h_prev.T @ df_raw / batch_size
-            gradients['b_f'] += np.sum(df_raw, axis=0, keepdims=True) / batch_size
+            gradients['W_f'] += x_t.T @ df_raw
+            gradients['U_f'] += h_prev.T @ df_raw
+            gradients['b_f'] += np.sum(df_raw, axis=0, keepdims=True)
             
             # Input gate
-            gradients['W_i'] += x_t.T @ di_raw / batch_size
-            gradients['U_i'] += h_prev.T @ di_raw / batch_size
-            gradients['b_i'] += np.sum(di_raw, axis=0, keepdims=True) / batch_size
+            gradients['W_i'] += x_t.T @ di_raw
+            gradients['U_i'] += h_prev.T @ di_raw
+            gradients['b_i'] += np.sum(di_raw, axis=0, keepdims=True)
             
             # Output gate
-            gradients['W_o'] += x_t.T @ do_raw / batch_size
-            gradients['U_o'] += h_prev.T @ do_raw / batch_size
-            gradients['b_o'] += np.sum(do_raw, axis=0, keepdims=True) / batch_size
+            gradients['W_o'] += x_t.T @ do_raw
+            gradients['U_o'] += h_prev.T @ do_raw
+            gradients['b_o'] += np.sum(do_raw, axis=0, keepdims=True)
             
             # Cell candidate
-            gradients['W_c'] += x_t.T @ dc_tilde_raw / batch_size
-            gradients['U_c'] += h_prev.T @ dc_tilde_raw / batch_size
-            gradients['b_c'] += np.sum(dc_tilde_raw, axis=0, keepdims=True) / batch_size
+            gradients['W_c'] += x_t.T @ dc_tilde_raw
+            gradients['U_c'] += h_prev.T @ dc_tilde_raw
+            gradients['b_c'] += np.sum(dc_tilde_raw, axis=0, keepdims=True)
             
             # Gradient pour l'input x_t
             dx_t = (df_raw @ self.parameters['W_f'].T +
@@ -676,15 +679,15 @@ class GRU(Layer):
             
             # Gradients pour le candidat h_tilde
             dh_tilde = dh_total * z_t
-            dh_tilde_raw = self.tanh.backward(dh_tilde)
-            
+            dh_tilde_raw = dh_tilde * (1 - h_tilde_t ** 2)
+
             # Gradients pour la porte update (z)
             dz = dh_total * (h_tilde_t - h_prev)
-            dz_raw = self.sigmoid.backward(dz)
-            
+            dz_raw = dz * z_t * (1 - z_t)
+
             # Gradients pour la porte reset (r)
             dr = dh_tilde_raw @ self.parameters['U_h'].T * h_prev
-            dr_raw = self.sigmoid.backward(dr)
+            dr_raw = dr * r_t * (1 - r_t)
             
             # Gradients pour l'état caché précédent
             dh_prev_part1 = dh_total * (1 - z_t)
@@ -697,19 +700,19 @@ class GRU(Layer):
             
             # Mettre à jour les gradients des poids
             # Update gate
-            gradients['W_z'] += x_t.T @ dz_raw / batch_size
-            gradients['U_z'] += h_prev.T @ dz_raw / batch_size
-            gradients['b_z'] += np.sum(dz_raw, axis=0, keepdims=True) / batch_size
+            gradients['W_z'] += x_t.T @ dz_raw
+            gradients['U_z'] += h_prev.T @ dz_raw
+            gradients['b_z'] += np.sum(dz_raw, axis=0, keepdims=True)
             
             # Reset gate
-            gradients['W_r'] += x_t.T @ dr_raw / batch_size
-            gradients['U_r'] += h_prev.T @ dr_raw / batch_size
-            gradients['b_r'] += np.sum(dr_raw, axis=0, keepdims=True) / batch_size
+            gradients['W_r'] += x_t.T @ dr_raw
+            gradients['U_r'] += h_prev.T @ dr_raw
+            gradients['b_r'] += np.sum(dr_raw, axis=0, keepdims=True)
             
             # Candidate
-            gradients['W_h'] += x_t.T @ dh_tilde_raw / batch_size
-            gradients['U_h'] += (r_t * h_prev).T @ dh_tilde_raw / batch_size
-            gradients['b_h'] += np.sum(dh_tilde_raw, axis=0, keepdims=True) / batch_size
+            gradients['W_h'] += x_t.T @ dh_tilde_raw
+            gradients['U_h'] += (r_t * h_prev).T @ dh_tilde_raw
+            gradients['b_h'] += np.sum(dh_tilde_raw, axis=0, keepdims=True)
             
             # Gradient pour l'input x_t
             dx_t = (dz_raw @ self.parameters['W_z'].T +

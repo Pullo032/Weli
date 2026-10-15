@@ -100,11 +100,11 @@ class Dense(Layer):
             dout = self.activation.backward(dout)
         
         # Gradient par rapport aux poids
-        self.gradients['W'] = (self.input.T @ dout) / batch_size
+        self.gradients['W'] = (self.input.T @ dout)
         
         # Gradient par rapport aux biais
         if self.use_bias:
-            self.gradients['b'] = np.sum(dout, axis=0, keepdims=True) / batch_size
+            self.gradients['b'] = np.sum(dout, axis=0, keepdims=True)
         
         # Gradient par rapport à l'input
         dx = dout @ self.parameters['W'].T

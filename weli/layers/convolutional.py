@@ -171,13 +171,13 @@ class Conv2D(Layer):
             dout = self.activation.backward(dout)
         
         # Gradient par rapport aux biais
-        self.gradients['b'] = np.sum(dout, axis=(0, 1, 2), keepdims=True) / batch_size
+        self.gradients['b'] = np.sum(dout, axis=(0, 1, 2), keepdims=True)
         
         # Reshape dout
         dout_reshaped = dout.reshape(batch_size * self.output_shape[1] * self.output_shape[2], self.filters)
         
         # Gradient par rapport aux poids
-        self.gradients['W'] = (self.cols.T @ dout_reshaped).reshape(self.parameters['W'].shape) / batch_size
+        self.gradients['W'] = (self.cols.T @ dout_reshaped).reshape(self.parameters['W'].shape)
         
         # Gradient par rapport à l'input
         W_reshaped = self.parameters['W'].reshape(-1, self.filters)
